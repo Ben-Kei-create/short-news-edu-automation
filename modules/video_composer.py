@@ -1,5 +1,8 @@
 # modules/video_composer.py
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip
+from moviepy.video.VideoClip import ImageClip
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy import concatenate_videoclips
+from moviepy.audio.AudioClip import CompositeAudioClip
 from pathlib import Path
 
 def compose_video(images, audio_file, bgm_file=None, output_file="output/videos/output.mp4", fps=30, duration_per_image=12):

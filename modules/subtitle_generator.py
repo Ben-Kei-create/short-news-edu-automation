@@ -16,7 +16,7 @@ def generate_subtitles(script_text, audio_file, output_file="output/subtitles/su
     """
     try:
         # 音声秒数取得
-        from moviepy.editor import AudioFileClip
+        from moviepy.audio.io.AudioFileClip import AudioFileClip
         audio_clip = AudioFileClip(audio_file)
         total_duration = audio_clip.duration
 

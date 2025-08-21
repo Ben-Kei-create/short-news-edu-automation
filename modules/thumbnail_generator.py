@@ -1,6 +1,8 @@
 # modules/thumbnail_generator.py
 
-from moviepy.editor import ImageClip, TextClip, CompositeVideoClip
+from moviepy.video.VideoClip import ImageClip
+from moviepy.video.VideoClip import TextClip
+from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
 from pathlib import Path
 
 def generate_thumbnail(
