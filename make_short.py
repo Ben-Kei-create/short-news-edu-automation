@@ -1,5 +1,5 @@
 # make_short.py
-from modules.input_manager import parse_args, get_theme
+from modules.input_manager import parse_args, get_themes
 from modules.theme_selector import filter_duplicate_themes, select_themes_for_batch
 from modules.script_generator import generate_script
 from modules.image_manager import load_manual_images, generate_images
@@ -13,57 +13,85 @@ from modules.utils import ensure_folder
 
 import os
 
-# --- フォルダ準備 ---
-ensure_folder("output/videos")
-ensure_folder("output/subtitles")
-ensure_folder("output/thumbnails")
-ensure_folder("output/logs")
-ensure_folder("temp")
+def setup_directories():
+    """必要なフォルダを準備する"""
+    ensure_folder("output/videos")
+    ensure_folder("output/subtitles")
+    ensure_folder("output/thumbnails")
+    ensure_folder("output/logs")
+    ensure_folder("temp")
 
-def main():
-    # --- 引数解析 ---
-    args = parse_args()
-
-    # --- テーマ取得 ---
-    theme = get_theme(args)
-    print(f"選択されたテーマ: {theme}")
+def process_single_video(theme, args):
+    """1つのテーマに対して動画を生成する処理"""
+    print(f"\n--- テーマ: \"{theme}\" の動画生成を開始します ---")
 
     # --- 台本生成 ---
+    print("1. 台本を生成中...")
     script_text = generate_script(theme)
-    print(f"生成された台本: {script_text[:50]}...")
+    print(f"-> 生成された台本: {script_text[:50].replace('\n', ' ')}...")
 
     # --- 画像準備 ---
+    print("2. 画像を準備中...")
     manual_images = load_manual_images(args.manual_images)
     num_images_needed = 5  # 仮: 60秒動画なら5枚スライド
     generated_images = generate_images(theme, args.style, num_images_needed - len(manual_images))
     images = manual_images + generated_images
-    print(f"使用する画像: {images}")
+    print(f"-> 使用する画像: {images}")
 
     # --- 音声生成 ---
+    print("3. 音声を生成中...")
     audio_file = generate_voice(script_text)
-    print(f"音声ファイル: {audio_file}")
+    print(f"-> 音声ファイル: {audio_file}")
 
     # --- BGM準備 ---
+    print("4. BGMを準備中...")
     bgm_file = select_bgm(args.bgm_path)
-    print(f"BGMファイル: {bgm_file}")
+    print(f"-> BGMファイル: {bgm_file}")
 
     # --- 動画合成 ---
-    video_file = compose_video(images, audio_file, bgm_file)
-    print(f"動画ファイル: {video_file}")
+    print("5. 動画を合成中...")
+    video_file = compose_video(theme, images, audio_file, bgm_file)
+    print(f"-> 動画ファイル: {video_file}")
 
     # --- 字幕生成 ---
-    subtitle_file = generate_subtitles(script_text, audio_file)
-    print(f"字幕ファイル: {subtitle_file}")
+    print("6. 字幕を生成中...")
+    subtitle_file = generate_subtitles(theme, script_text, audio_file)
+    print(f"-> 字幕ファイル: {subtitle_file}")
 
     # --- サムネイル生成 ---
+    print("7. サムネイルを生成中...")
     thumbnail_file = generate_thumbnail(images)
-    print(f"サムネイルファイル: {thumbnail_file}")
+    print(f"-> サムネイルファイル: {thumbnail_file}")
 
     # --- ログ記録 ---
+    print("8. ログを記録中...")
     log_video(video_file, theme, images, args.style, bgm_file)
 
     # --- SNS投稿 ---
+    print("9. SNSに投稿中...")
     post_to_sns(video_file, title=theme, description=script_text, hashtags=["#しくじり先生", "#短編動画"])
+    
+    print(f"--- テーマ: \"{theme}\" の動画生成が完了しました ---")
+
+
+def main():
+    # --- 初期設定 ---
+    setup_directories()
+    args = parse_args()
+
+    # --- テーマ取得 ---
+    themes = get_themes(args)
+    if not themes:
+        print("処理するテーマが見つからないため、終了します。")
+        return
+
+    # --- メインループ ---
+    print(f"\n>>> 合計{len(themes)}件の動画生成を開始します <<<")
+    for i, theme in enumerate(themes):
+        process_single_video(theme, args)
+        print(f">>> 進捗: {i + 1}/{len(themes)}件完了 <<<")
+
+    print("\nすべての動画生成が完了しました。お疲れ様でした！")
 
 if __name__ == "__main__":
     main()

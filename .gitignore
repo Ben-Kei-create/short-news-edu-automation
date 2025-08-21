@@ -1,4 +1,23 @@
-.env
-.DS_Store
-Readme.txt
+# Python
 __pycache__/
+*.py[cod]
+
+# Environments
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Output & Temp folders
+output/
+temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Root-level example media
+/example.png
+/s.png
+/sample.mp4

@@ -1,47 +1,47 @@
 # modules/audio_manager.py
 import os
-from pathlib import Path
+import uuid
 import requests
+from dotenv import load_dotenv
 
-# APIキーは環境変数 ELEVENLABS_API_KEY に保存
-API_KEY = os.getenv("ELEVENLABS_API_KEY")
-BASE_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-
-def generate_voice(script_text, voice_id="21m00Tcm4TlvDq8ikWAM", output_file="voice.mp3"):
+def generate_voice(script_text, voice_id="21m00Tcm4TlvDq8ikWAM"):
     """
-    ElevenLabs TTSで台本を音声化
-    Args:
-        script_text (str): 音声化したいテキスト
-        voice_id (str): 音声ID（ElevenLabsの声）
-        output_file (str): 出力音声ファイル名
-    Returns:
-        str: 生成音声ファイルパス
+    ElevenLabs TTSで台本を音声化し、tempフォルダにユニークなファイル名で保存する。
     """
-    if not API_KEY:
-        raise ValueError("ELEVENLABS_API_KEY が設定されていません。")
+    load_dotenv()
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise ValueError("環境変数 'ELEVENLABS_API_KEY' が設定されていません。")
 
-    url = f"{BASE_URL}/{voice_id}"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
-        "xi-api-key": API_KEY,
-        "Content-Type": "application/json"
+        "Accept": "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": api_key
     }
     data = {
         "text": script_text,
+        "model_id": "eleven_multilingual_v2",
         "voice_settings": {
             "stability": 0.7,
-            "similarity_boost": 0.7
+            "similarity_boost": 0.75
         }
     }
+
+    temp_dir = "temp"
+    os.makedirs(temp_dir, exist_ok=True)
+    output_path = os.path.join(temp_dir, f"voice_{uuid.uuid4()}.mp3")
 
     try:
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
 
-        # 音声データを保存
-        Path(output_file).write_bytes(response.content)
-        print(f"音声生成完了: {output_file}")
-        return output_file
+        with open(output_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"  -> 音声生成完了: {output_path}")
+        return output_path
 
-    except Exception as e:
-        print(f"音声生成エラー: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"  - 音声生成エラー: {e}")
         return None
