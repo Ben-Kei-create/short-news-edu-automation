@@ -2,9 +2,9 @@
 import os
 from moviepy.video.VideoClip import ImageClip, ColorClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
-from moviepy.video.compositing.concatenate import concatenate_videoclips
+from moviepy.video.compositing.CompositeVideoClip import concatenate_videoclips
 from moviepy.audio.io.AudioFileClip import AudioFileClip
-from moviepy.audio.compositing.CompositeAudioClip import CompositeAudioClip
+from moviepy.audio.AudioClip import CompositeAudioClip
 from moviepy.audio.fx.MultiplyVolume import MultiplyVolume
 from moviepy.audio.fx.AudioLoop import AudioLoop
 
@@ -67,8 +67,10 @@ def compose_video(theme, images, audio_path, bgm_path):
         output_dir = "output/videos"
         os.makedirs(output_dir, exist_ok=True)
         # テーマ名から安全なファイル名を生成
+        import datetime
+        current_date = datetime.datetime.now().strftime("%Y%m%d")
         safe_theme_name = "".join(c for c in theme if c.isalnum() or c in (' ', '-')).rstrip()
-        output_path = os.path.join(output_dir, f"{safe_theme_name}.mp4")
+        output_path = os.path.join(output_dir, f"{current_date}_{safe_theme_name}.mp4")
 
         print(f"  - 動画ファイルに書き出し中: {output_path}")
         final_clip.write_videofile(

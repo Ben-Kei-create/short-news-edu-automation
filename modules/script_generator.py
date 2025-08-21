@@ -39,7 +39,7 @@ def generate_script(theme):
 
     try:
         # Geminiモデルを初期化してコンテンツを生成
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
         response = model.generate_content(prompt)
         
         # 生成されたテキストを返す

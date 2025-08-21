@@ -13,8 +13,17 @@ def parse_args():
     parser.add_argument("--manual_images", type=str, help="手動画像フォルダパス")
     return parser.parse_args()
 
+import requests # Added import
+
 def fetch_news_rss(rss_url="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja"):
-    feed = feedparser.parse(rss_url)
+    try:
+        response = requests.get(rss_url, verify=False) # Use requests to fetch, disable SSL verify
+        response.raise_for_status() # Raise an exception for HTTP errors
+        feed = feedparser.parse(response.content) # Pass content to feedparser
+    except requests.exceptions.RequestException as e:
+        print(f"RSSフィードの取得に失敗しました: {e}")
+        return []
+    
     if feed.bozo:
         print(f"RSSフィードの解析に失敗しました: {feed.bozo_exception}")
         return []

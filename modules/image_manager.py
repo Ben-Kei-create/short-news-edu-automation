@@ -1,4 +1,3 @@
-# modules/image_manager.py
 import os
 import glob
 import google.generativeai as genai
@@ -27,33 +26,27 @@ def _generate_image_prompts(theme, style, num):
         raise ValueError("環境変数 'GEMINI_API_KEY' が設定されていません。")
     
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('models/gemini-2.5-flash')
 
     prompt = f"""
-# 指示
-あなたはクリエイティブディレクターです。
-以下のテーマと画風に基づき、YouTubeショート動画用の画像を生成するための、創造的で多様なプロンプトを{num}個、リスト形式で提案してください。
-
-# テーマ
-{theme}
-
-# 画風
-{style}
-
-# 条件
-- 各プロンプトは、英語で記述してください。
-- 1つのプロンプトは1文で、簡潔かつ視覚的にイメージしやすいものにしてください。
-- 多様なシーンや構図を提案してください。
-
-# 出力形式
-- プロンプト1
-- プロンプト2
-..."
+You are an expert image prompt engineer.
+Generate exactly {num} distinct, visually compelling image prompts for a YouTube short video about the historical topic '{theme}'.
+The style should be '{style}'.
+Each prompt must be a single, concise sentence, suitable for direct input into an image generation AI.
+Focus on diverse scenes and compositions that capture the essence of the topic.
+Output only the {num} raw prompts, one per line, with no numbering, bullet points, conversational text, or introductory/concluding phrases.
+"""
 
     try:
         response = model.generate_content(prompt)
-        # 生成されたテキストを行ごとに分割し、先頭の "- " を削除
-        prompts = [line.strip().lstrip('- ') for line in response.text.strip().split('\n') if line.strip()] 
+        # Split by newline and strip whitespace from each line
+        prompts = [line.strip() for line in response.text.strip().split('\n') if line.strip()]
+        
+        if len(prompts) != num:
+            print(f"  - 警告: Geminiが要求された{num}件ではなく、{len(prompts)}件のプロンプトを返しました。")
+            # Optionally, you could try to regenerate or pad with empty strings/placeholders
+            # For now, we'll proceed with what we got. 
+        
         return prompts
     except Exception as e:
         print(f"  - Geminiでのプロンプト生成中にエラー: {e}")

@@ -43,8 +43,10 @@ def generate_subtitles(theme, script_text, audio_file):
         # 出力パスを生成
         output_dir = "output/subtitles"
         os.makedirs(output_dir, exist_ok=True)
+        import datetime
+        current_date = datetime.datetime.now().strftime("%Y%m%d")
         safe_theme_name = "".join(c for c in theme if c.isalnum() or c in (' ', '-')).rstrip()
-        output_path = os.path.join(output_dir, f"{safe_theme_name}.srt")
+        output_path = os.path.join(output_dir, f"{current_date}_{safe_theme_name}.srt")
 
         # ファイルに書き出し
         with open(output_path, "w", encoding="utf-8") as f:

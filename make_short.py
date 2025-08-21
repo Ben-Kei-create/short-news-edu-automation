@@ -28,7 +28,8 @@ def process_single_video(theme, args):
     # --- 台本生成 ---
     print("1. 台本を生成中...")
     script_text = generate_script(theme)
-    print(f"-> 生成された台本: {script_text[:50].replace('\n', ' ')}...")
+    display_script_text = script_text[:50].replace('\n', ' ')
+    print(f"-> 生成された台本: {display_script_text}...")
 
     # --- 画像準備 ---
     print("2. 画像を準備中...")
@@ -60,7 +61,7 @@ def process_single_video(theme, args):
 
     # --- サムネイル生成 ---
     print("7. サムネイルを生成中...")
-    thumbnail_file = generate_thumbnail(images)
+    thumbnail_file = generate_thumbnail(theme, images)
     print(f"-> サムネイルファイル: {thumbnail_file}")
 
     # --- ログ記録 ---
