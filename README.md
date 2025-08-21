@@ -26,15 +26,20 @@ from moviepy.video.VideoClip import ImageClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 ```
 
-## 4. プロジェクトの実行
+## 4. 使い方 (Usage)
 
-```bash
-# 任意のスクリプトを実行
-python main.py
-```
+1.  **`input` フォルダに素材を入れる**
+    - プロジェクトルートに `input` フォルダがない場合は、スクリプトが自動で作成します。
+    - 動画にしたい**画像ファイル**（.png, .jpg, .jpeg）と**音声ファイル**（.mp4, .mp3, .wav, .m4a）を1つずつ `input` フォルダに入れてください。
+    - **注意:** 音声ファイルの長さは60秒以上である必要があります。60秒未満の場合はエラーで停止します。
 
-## 5. 注意点
+2.  **スクリプトを実行する**
+    - 仮想環境を有効化した後 (`source venv/bin/activate`)、以下のコマンドを実行します。
 
-* moviepy 2.x 系では `moviepy.editor` は存在しません。インポート先を上記に変更してください
-* Python バージョンが合わない場合は pyenv で切り替え可能
-* 依存ライブラリは venv 内にインストールしてください
+    ```bash
+    python3 generate_60s_video.py
+    ```
+    - `input` フォルダ内の最初の画像・音声ファイルが自動的に使用されます。
+
+3.  **成果物を確認する**
+    - 処理が完了すると、`output` フォルダに `（元の画像ファイル名）_short_video.mp4` という名前で動画ファイルが生成されます。
