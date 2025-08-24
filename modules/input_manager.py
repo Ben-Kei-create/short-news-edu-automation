@@ -32,6 +32,7 @@ def parse_args():
 
     # SNS投稿設定
     parser.add_argument("--post-to-youtube", action='store_false', default=True, help="生成した動画をYouTubeにアップロードする (デフォルト: True)")
+    parser.add_argument("--use-voicevox", action='store_true', default=False, help="VOICEVOX APIを使用して音声を生成する (デフォルト: False)")
 
     return parser.parse_args()
 

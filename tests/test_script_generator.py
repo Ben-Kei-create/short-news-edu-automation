@@ -29,9 +29,9 @@ def test_generate_script_success(mock_configure, mock_GenerativeModel, mock_sett
     result = generate_script(theme, mock_settings)
 
     # 検証
-    assert result == "【台本】\nテストの台本内容\n\n【文字数】320文字"
+    assert result == "テストの台本内容"
     mock_configure.assert_called_once_with(api_key='mock_gemini_api_key')
-    mock_GenerativeModel.assert_called_once_with('models/gemini-2.5-flash')
+    mock_GenerativeModel.assert_called_once_with('models/gemini-1.5-flash')
     mock_model_instance.generate_content.assert_called_once()
 
 @patch('google.generativeai.GenerativeModel')

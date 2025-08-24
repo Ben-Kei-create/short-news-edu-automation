@@ -72,8 +72,8 @@ def process_single_video(theme, args, settings):
     try:
         # --- 音声生成 ---
         print("3. 音声を生成中...")
-        # generate_voice 関数に settings を渡す
-        audio_segments_info = generate_voice(script_text, settings)
+        # generate_voice 関数に settings と use_voicevox を渡す
+        audio_segments_info = generate_voice(script_text, settings, args.use_voicevox)
         if not audio_segments_info:
             print("エラー: 音声生成に失敗しました。")
             return

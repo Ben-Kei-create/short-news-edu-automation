@@ -26,6 +26,7 @@
 | `--use-google-search`| Google Search APIを使用して画像を検索・取得します。                  | `False`      |
 | `--use-dalle`        | DALL-E APIを使用して画像を生成します。                               | `False`      |
 | `--post-to-youtube`  | 生成されたビデオをYouTubeに自動投稿します。                          | `False`      |
+| `--use-voicevox`     | VOICEVOX APIを使用して音声を生成します。                            | `False`      |
 
 ## 推奨環境
 
@@ -55,6 +56,72 @@ pip install -r requirements.txt
 - `google-api-python-client`
 - `google-auth-httplib2`
 - `google-auth-oauthlib`
+
+## 実行方法
+
+`make_short.py` スクリプトの実行方法について説明します。プロジェクトのルートディレクトリにいることを確認し、仮想環境をアクティベートしてから実行してください。
+
+```bash
+# プロジェクトのルートディレクトリに移動
+# cd /path/to/your/project
+
+# 仮想環境をアクティベート (macOS/Linuxの場合)
+source venv/bin/activate
+
+# 仮想環境をアクティベート (Windows PowerShellの場合)
+# .\venv\Scripts\Activate.ps1
+```
+
+### 1. 引数なしで実行する場合
+
+引数を指定しない場合、`config/settings.yaml` の設定と、`modules/input_manager.py` で定義されているデフォルト値が使用されます。特に、画像生成（Stable Diffusion, Google Search, DALL-E）やYouTubeへの自動投稿は、デフォルトで有効（`True`）になります。
+
+```bash
+python make_short.py
+```
+
+### 2. 引数を指定して実行する場合
+
+特定の機能を有効にしたり、デフォルトの動作を変更したりするために引数を使用します。
+
+#### 例1: VOICEVOXを有効にして実行する
+
+VOICEVOX APIを使用して音声を生成したい場合、`--use-voicevox` 引数を追加します。
+
+```bash
+python make_short.py --use-voicevox
+```
+
+#### 例2: Stable Diffusion APIの使用を無効にして実行する
+
+`--use_sd_api` は、デフォルトでStable Diffusion APIを使用する設定になっています。もしAPIの使用を**無効にしたい**場合は、この引数を指定します。
+
+```bash
+python make_short.py --use_sd_api
+```
+
+#### 例3: 特定のテーマを指定して実行する
+
+`--theme` 引数を使って、動画を生成したいテーマを直接指定できます。
+
+```bash
+python make_short.py --theme "日本の歴史" "AIの進化"
+```
+
+#### 例4: 複数の引数を組み合わせて実行する
+
+VOICEVOXを有効にし、かつYouTubeへの自動投稿を無効にする場合：
+
+```bash
+python make_short.py --use-voicevox --post-to-youtube
+```
+
+**補足:**
+
+*   `--use_sd_api`, `--use_google_search`, `--use_dalle`, `--post-to-youtube` は、引数を指定しない場合は `True`（有効）になります。引数を指定すると `False`（無効）になります。
+*   `--use-voicevox` は、引数を指定しない場合は `False`（無効）になります。引数を指定すると `True`（有効）になります。
+
+---
 
 ## 運用フロー
 

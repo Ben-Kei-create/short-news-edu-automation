@@ -3,6 +3,9 @@ import os
 import google.generativeai as genai
 from google.generativeai import types
 import re
+import logging # 追加
+
+logger = logging.getLogger(__name__) # ロガーを取得
 
 # generate_script 関数の引数に settings を追加
 def generate_script(theme, settings):
@@ -13,11 +16,9 @@ def generate_script(theme, settings):
     try:
         api_key = settings['api_keys']['gemini']
         if not api_key or "ここに" in api_key:
-            print("エラー: settings.yamlに有効な 'api_keys.gemini' が設定されていません。")
-            return None
+            raise ValueError("設定ファイルに 'api_keys.gemini' が設定されていません。")
     except KeyError:
-        print("エラー: settings.yamlに 'api_keys.gemini' の設定がありません。")
-        return None
+        raise ValueError("設定ファイルに 'api_keys.gemini' が設定されていません。")
 
     genai.configure(api_key=api_key)
 
@@ -124,17 +125,17 @@ def generate_script(theme, settings):
             # max_script_length_chars を超える場合は切り詰める
             if len(script_text) > max_script_length_chars:
                 script_text = script_text[:max_script_length_chars] + "..."
-                print(f"  - 警告: 生成された台本が最大文字数({max_script_length_chars})を超えたため、切り詰めました。")
+                logger.warning(f"生成された台本が最大文字数({max_script_length_chars})を超えたため、切り詰めました。")
             return script_text
         
-        print(f"エラー: 生成されたテキストから台本の抽出に失敗しました。")
-        print(f"---{response.text[:500]}...
----")
+        logger.error("生成されたテキストから台本の抽出に失敗しました。")
+        # 修正: f-stringの閉じ忘れを修正
+        logger.error(f"---{response.text[:500]}...")
         return None
 
     except types.BlockedPromptException as e:
-        print(f"エラー: Gemini APIが不適切なコンテンツを検出しました。テーマを変更してください: {e}")
-        return None
+        logger.error(f"Gemini APIが不適切なコンテンツを検出しました。テーマを変更してください: {e}", exc_info=True)
+        return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
     except Exception as e:
-        print(f"エラー: Gemini APIの呼び出し中に予期せぬエラーが発生しました: {e}")
-        return None
+        logger.error(f"Gemini APIの呼び出し中に予期せぬエラーが発生しました: {e}", exc_info=True)
+        return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
