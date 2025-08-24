@@ -1,5 +1,5 @@
 requests
-google-genai
+google-generativeai
 google-cloud-texttospeech
 python-dotenv
 moviepy==1.0.3
@@ -8,3 +8,4 @@ feedparser
 Pillow==9.5.0
 PyYAML
 pytest
+openai

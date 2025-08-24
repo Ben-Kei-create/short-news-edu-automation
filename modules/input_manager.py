@@ -13,8 +13,10 @@ def parse_args():
     parser.add_argument("--script_file", type=str, help="台本ファイルパス")
     parser.add_argument("--manual_images", type=str, help="手動画像フォルダパス")
 
-    # Stable Diffusion設定
+    # 画像生成AI設定
     parser.add_argument("--use_sd_api", action='store_true', help="Stable Diffusion APIを使用して画像を生成する")
+    parser.add_argument("--use_google_search", action='store_true', help="Google Custom Searchを使用してWebから画像を検索・利用する")
+    parser.add_argument("--use_dalle", action='store_true', help="DALL-Eを使用して画像を生成する")
     parser.add_argument("--style", type=str, default="cinematic, dramatic", help="画像の画風に関連するプロンプト")
     parser.add_argument("--sd_model", type=str, help="使用するStable Diffusionのベースモデル名")
     parser.add_argument("--lora_model", type=str, help="使用するLoRAモデル名 (拡張子なし)")

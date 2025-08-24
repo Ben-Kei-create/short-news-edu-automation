@@ -51,10 +51,12 @@ def process_single_video(theme, args, settings):
             style=args.style,
             num=num_images_needed - len(manual_images),
             use_sd_api=args.use_sd_api,
+            use_google_search=args.use_google_search,
+            use_dalle=args.use_dalle,
             sd_model=args.sd_model,
             lora_model=args.lora_model,
             lora_weight=args.lora_weight,
-            settings=settings # settings を渡す
+            settings=settings
         )
         images = manual_images + generated_images
         print(f"-> 使用する画像: {images}")
