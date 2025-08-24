@@ -1,7 +1,7 @@
 import os
 import glob
 import google.generativeai as genai
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # 削除
 import requests
 import base64
 from datetime import datetime
@@ -19,13 +19,15 @@ def load_manual_images(folder_path):
         
     return sorted(list(set(image_files)))
 
-def _generate_image_prompts(theme, style, num):
+# _generate_image_prompts 関数の引数に settings を追加
+def _generate_image_prompts(theme, style, num, settings):
     """Geminiを使用して、画像生成のためのプロンプトを複数作成する"""
     print(f"  - Geminiで画像プロンプトを{num}件生成中...")
-    load_dotenv()
-    api_key = os.getenv("GEMINI_API_KEY")
+    # load_dotenv() # 削除
+    # api_key = os.getenv("GEMINI_API_KEY") # 変更
+    api_key = settings['api_keys']['gemini']
     if not api_key:
-        raise ValueError("環境変数 'GEMINI_API_KEY' が設定されていません。")
+        raise ValueError("設定ファイルに 'api_keys.gemini' が設定されていません。") # エラーメッセージ変更
     
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('models/gemini-1.5-flash') # Use a model that is available
@@ -46,11 +48,18 @@ Output only the {num} raw prompts, one per line, with no numbering, bullet point
             print(f"  - 警告: Geminiが要求された{num}件ではなく、{len(prompts)}件のプロンプトを返しました。")
         
         return prompts
+    except genai.types.BlockedPromptException as e:
+        print(f"  - エラー: Gemini APIが不適切なコンテンツを検出しました。プロンプトを調整してください: {e}")
+        return []
+    except genai.types.APIError as e:
+        print(f"  - エラー: Gemini APIの呼び出し中にAPIエラーが発生しました。APIキーまたはネットワーク接続を確認してください: {e}")
+        return []
     except Exception as e:
-        print(f"  - Geminiでのプロンプト生成中にエラー: {e}")
+        print(f"  - エラー: Geminiでのプロンプト生成中に予期せぬエラーが発生しました: {e}")
         return []
 
-def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_model=None, lora_weight=0.8):
+# generate_images 関数の引数に settings を追加
+def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_model=None, lora_weight=0.8, settings=None):
     """
     テーマとスタイルに基づき、AIで画像を生成する。
     use_sd_api=Trueの場合、Stable Diffusion APIを呼び出す。
@@ -66,7 +75,8 @@ def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_
         if lora_model:
             print(f"    - LoRAモデル: {lora_model} (強度: {lora_weight})")
 
-        image_prompts = _generate_image_prompts(theme, style, num)
+        # _generate_image_prompts 関数に settings を渡す
+        image_prompts = _generate_image_prompts(theme, style, num, settings)
         if not image_prompts:
             print("  - 画像プロンプトを生成できなかったため、処理をスキップします。")
             return []
@@ -77,22 +87,24 @@ def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_
         print(f"  - 画像保存先: {save_dir}")
 
         generated_image_paths = []
-        sd_api_url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
+        # sd_api_url を settings から取得
+        sd_api_url = settings['stable_diffusion']['api_url']
 
         for i, p in enumerate(image_prompts):
             print(f"    - 画像 {i+1}/{len(image_prompts)} を生成中... (Prompt: {p[:40]}...)")
             
             # プロンプトに高品質化・LoRAキーワードを追加
-            quality_keywords = "masterpiece, best quality, 8k, ultra-detailed, sharp focus, dynamic angle, cinematic lighting"
+            # quality_keywords を settings から取得
+            quality_keywords = settings['stable_diffusion']['quality_keywords']
             lora_prompt = f" <lora:{lora_model}:{lora_weight}>" if lora_model else ""
             final_prompt = f"{p}, ({style}), {quality_keywords}{lora_prompt}"
 
             payload = {
                 "prompt": final_prompt,
-                "steps": 25,
-                "width": 512,
-                "height": 768,
-                "negative_prompt": "(worst quality, low quality:1.4), (blurry:1.2), deformed, ugly, watermark, text, signature"
+                "steps": settings['stable_diffusion']['steps'], # settings から取得
+                "width": settings['stable_diffusion']['width'], # settings から取得
+                "height": settings['stable_diffusion']['height'], # settings から取得
+                "negative_prompt": settings['stable_diffusion']['negative_prompt'] # settings から取得
             }
 
             # ベースモデル切り替え設定
@@ -112,21 +124,35 @@ def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_
                     f.write(img_data)
                 generated_image_paths.append(img_path)
 
-            except requests.exceptions.RequestException as e:
-                print(f"    - エラー: Stable Diffusion APIへの接続に失敗しました: {e}")
+            except requests.exceptions.Timeout as e:
+                print(f"    - エラー: Stable Diffusion APIへの接続がタイムアウトしました: {e}")
                 print("      プレースホルダー画像を使用します。")
-                generated_image_paths.append("example.png") # フォールバック
+                generated_image_paths.append(settings['general']['placeholder_image_path']) # フォールバック
+            except requests.exceptions.ConnectionError as e:
+                print(f"    - エラー: Stable Diffusion APIへの接続に失敗しました。APIサーバーが起動しているか確認してください: {e}")
+                print("      プレースホルダー画像を使用します。")
+                generated_image_paths.append(settings['general']['placeholder_image_path']) # フォールバック
+            except requests.exceptions.HTTPError as e:
+                print(f"    - エラー: Stable Diffusion APIからHTTPエラーが返されました: {e}")
+                print("      プレースホルダー画像を使用します。")
+                generated_image_paths.append(settings['general']['placeholder_image_path']) # フォールバック
+            except requests.exceptions.RequestException as e:
+                print(f"    - エラー: Stable Diffusion APIへのリクエスト中に予期せぬエラーが発生しました: {e}")
+                print("      プレースホルダー画像を使用します。")
+                generated_image_paths.append(settings['general']['placeholder_image_path']) # フォールバック
             except Exception as e:
                 print(f"    - エラー: 画像生成中に予期せぬエラーが発生しました: {e}")
-                generated_image_paths.append("example.png") # フォールバック
+                generated_image_paths.append(settings['general']['placeholder_image_path']) # フォールバック
 
         return generated_image_paths
 
     # --- APIを使用しない場合（従来のプレースホルダー処理） ---
     else:
         print("  - プレースホルダー画像を使用します。")
-        placeholder_image = "example.png"
+        # placeholder_image を settings から取得
+        placeholder_image = settings['general']['placeholder_image_path']
         if not os.path.exists(placeholder_image):
             print(f"    - 警告: プレースホルダー画像 '{placeholder_image}' が見つかりません。")
             return []
         return [placeholder_image] * num
+

@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np # New import
 from PIL import Image, ImageDraw, ImageFont # New imports
 
-def generate_thumbnail(theme, images):
+# generate_thumbnail 関数の引数に settings を追加
+def generate_thumbnail(theme, images, settings):
     """
     動画のテーマと画像リストからサムネイルを生成する。
     """
@@ -24,7 +25,12 @@ def generate_thumbnail(theme, images):
 
     try:
         # Load image using Pillow
-        pil_image = Image.open(base_image_path)
+        try:
+            pil_image = Image.open(base_image_path)
+        except (IOError, OSError) as e:
+            print(f"  - エラー: サムネイルのベース画像 ({base_image_path}) の読み込みエラー: {e}")
+            return None
+
         # Resize the image to a standard thumbnail size, e.g., 1920x1080 or similar aspect ratio
         # For simplicity, let's assume a target width and calculate height to maintain aspect ratio
         target_width = 1920 # Assuming a common video width
@@ -38,21 +44,23 @@ def generate_thumbnail(theme, images):
         # Load a font (adjust path as necessary for your system)
         # Common font paths for macOS: /Library/Fonts/Arial.ttf or /System/Library/Fonts/Arial.ttf
         try:
-            title_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 80)
-            series_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 50)
-        except IOError:
-            print("  - フォントファイルが見つかりません。システムにArial.ttfがインストールされているか確認してください。")
-            print("    代替フォントを使用するか、フォントパスを修正してください。")
-            # Fallback to a default font if Arial.ttf is not found, or raise an error
-            # For now, let's just use a generic font if truetype fails, or handle it more gracefully.
-            # If this fails, the user will need to provide a valid font path.
+            # フォントサイズを settings から取得
+            title_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", settings['video_composer']['font_size'] + 20) # 仮で+20
+            series_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", settings['video_composer']['font_size'] - 10) # 仮で-10
+        except IOError as e:
+            print(f"  - エラー: フォントファイルが見つからないか、読み込みエラーが発生しました: {e}")
+            print("    システムにArial.ttfがインストールされているか確認してください。代替フォントを使用します。")
+            title_font = ImageFont.load_default()
+            series_font = ImageFont.load_default()
+        except Exception as e:
+            print(f"  - エラー: フォントの読み込み中に予期せぬエラーが発生しました: {e}")
             title_font = ImageFont.load_default()
             series_font = ImageFont.load_default()
 
 
-        # Text colors
-        title_color = (255, 255, 255) # White
-        series_color = (255, 255, 0) # Yellow
+        # Text colors を settings から取得
+        title_color = settings['video_composer']['font_color']
+        series_color = (255, 255, 0) # Yellow (設定ファイルにないため、そのまま)
 
         # Calculate text positions
         # For center alignment, need text size
@@ -81,11 +89,16 @@ def generate_thumbnail(theme, images):
         pil_image = pil_image.convert("RGB") # Add this line to convert to RGB
         img_clip = ImageClip(np.array(pil_image))
 
-        # Save the frame (MoviePy's save_frame handles the conversion to JPG)
-        img_clip.save_frame(output_path)
+        # Save the frame (MoviePy\`'s save_frame handles the conversion to JPG)
+        try:
+            img_clip.save_frame(output_path)
+        except Exception as e:
+            print(f"  - エラー: サムネイル画像の保存に失敗しました: {e}")
+            return None
+
         print(f"  -> サムネイル生成完了: {output_path}")
         return output_path
 
     except Exception as e:
-        print(f"  - サムネイル生成エラー: {e}")
+        print(f"  - サムネイル生成中に予期せぬエラーが発生しました: {e}")
         return None

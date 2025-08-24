@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from google.cloud import texttospeech # New import
 from moviepy.audio.io.AudioFileClip import AudioFileClip # New import
 
-def generate_voice(script_text):
+# generate_voice 関数の引数に settings を追加
+def generate_voice(script_text, settings):
     """
     Google Cloud TTSで台本を音声化し、tempフォルダにユニークなファイル名で保存する。
     テキストを文やフレーズに分割し、それぞれの音声ファイルパスと再生時間を返す。
@@ -16,21 +17,24 @@ def generate_voice(script_text):
     # 環境変数が設定されていない場合は、認証エラーが発生します。
     try:
         client = texttospeech.TextToSpeechClient()
+    except google.api_core.exceptions.GoogleAuthError as e:
+        print(f"  - エラー: Google Cloud TTSクライアントの認証に失敗しました。google_credentials.json または GOOGLE_APPLICATION_CREDENTIALS 環境変数を確認してください: {e}")
+        return []
     except Exception as e:
-        print(f"  - エラー: Google Cloud TTSクライアントの初期化に失敗しました。認証情報を確認してください: {e}")
+        print(f"  - エラー: Google Cloud TTSクライアントの初期化中に予期せぬエラーが発生しました: {e}")
         return []
 
     # 音声の設定 (日本語、女性の声、標準)
     voice = texttospeech.VoiceSelectionParams(
         language_code="ja-JP",
-        name="ja-JP-Wavenet-A", # 高品質なWavenetボイス
-        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+        name=settings['google_tts']['voice_name'], # settings から取得
+        ssml_gender=getattr(texttospeech.SsmlVoiceGender, settings['google_tts']['ssml_gender']), # settings から取得
     )
 
     # 音声フォーマットの設定 (MP3)
     audio_config = texttospeech.AudioConfig(
         audio_encoding=texttospeech.AudioEncoding.MP3,
-        speaking_rate=1.25 # 話速を1.25倍に設定
+        speaking_rate=settings['google_tts']['speaking_rate'] # settings から取得
     )
 
     temp_dir = "temp"
@@ -76,10 +80,17 @@ def generate_voice(script_text):
             audio_segments_info.append({"path": output_path, "duration": duration, "text": segment_text})
             print(f"    - セグメント {i+1}: {output_path} ({duration:.2f}秒)")
 
+        except google.api_core.exceptions.InvalidArgument as e:
+            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): 無効な引数です。テキストの内容を確認してください: {e}")
+            audio_segments_info.append({"path": None, "duration": 0, "text": segment_text})
+        except google.api_core.exceptions.ResourceExhausted as e:
+            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): リソースが枯渇しました。APIクォータを確認してください: {e}")
+            audio_segments_info.append({"path": None, "duration": 0, "text": segment_text})
+        except google.api_core.exceptions.GoogleAPIError as e:
+            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): Google APIエラーが発生しました: {e}")
+            audio_segments_info.append({"path": None, "duration": 0, "text": segment_text})
         except Exception as e:
-            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): {e}")
-            # エラーが発生したセグメントはスキップするか、エラーハンドリングを強化する
-            # ここでは空の情報を追加して処理を続行
+            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): 予期せぬエラーが発生しました: {e}")
             audio_segments_info.append({"path": None, "duration": 0, "text": segment_text})
 
     return audio_segments_info

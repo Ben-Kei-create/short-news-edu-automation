@@ -4,7 +4,8 @@ from moviepy.video.tools.subtitles import SubtitlesClip
 from moviepy.audio.fx import all as afx
 import numpy as np
 
-def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, font_filename=None, image_duration=5.0):
+# compose_video 関数の引数に settings を追加
+def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, font_filename=None, image_duration=5.0, settings=None):
     """
     複数の画像、ナレーション、BGM、字幕を結合して一つの動画を生成する。
     画像の表示時間は5秒に固定し、音声の長さをそれに合わせる。
@@ -19,8 +20,9 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
 
     try:
         # --- 1. 画像クリップを作成 (5秒/枚に固定) ---
-        print(f"  - 画像スライドショーを作成中 ({image_duration}秒/枚)... ")
-        duration_per_image = image_duration
+        # image_duration を settings から取得
+        duration_per_image = settings['video_composer']['image_duration']
+        print(f"  - 画像スライドショーを作成中 ({duration_per_image}秒/枚)... ")
         image_clips = []
         for img_path in images:
             if not os.path.exists(img_path):
@@ -32,8 +34,11 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
                 background = ColorClip(size=(1080, 1920), color=(0, 0, 0)).set_duration(duration_per_image)
                 centered_clip = CompositeVideoClip([background, clip_resized.set_position("center")])
                 image_clips.append(centered_clip)
-            except Exception as e:
-                print(f"  - 警告: 画像クリップ作成エラー ({img_path}): {e}")
+            except (OSError, IOError) as e: # ファイル読み込みエラー
+                print(f"  - 警告: 画像ファイル ({img_path}) の読み込みエラー: {e}")
+                continue
+            except Exception as e: # その他の予期せぬエラー
+                print(f"  - 警告: 画像クリップ作成中に予期せぬエラーが発生しました ({img_path}): {e}")
                 continue
         
         if not image_clips:
@@ -45,12 +50,25 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
 
         # --- 2. 音声クリップを作成し、長さを映像に合わせる ---
         print("  - 音声セグメントを結合し、長さを調整中...")
-        valid_audio_clips = [AudioFileClip(seg["path"]) for seg in audio_segments_info if seg["path"] and os.path.exists(seg["path"])]
+        valid_audio_clips = []
+        for seg in audio_segments_info:
+            if seg["path"] and os.path.exists(seg["path"]):
+                try:
+                    valid_audio_clips.append(AudioFileClip(seg["path"]))
+                except Exception as e:
+                    print(f"  - 警告: 音声ファイル ({seg['path']}) の読み込みエラー: {e}")
+                    # 読み込みに失敗した音声クリップはスキップ
+                    continue
+
         if not valid_audio_clips:
-            print("エラー: 有効な音声クリップがありません。")
+            print("エラー: 有効な音声クリップがありません。動画を生成できません。")
             return None
         
-        narration_clip_raw = concatenate_audioclips(valid_audio_clips)
+        try:
+            narration_clip_raw = concatenate_audioclips(valid_audio_clips)
+        except Exception as e:
+            print(f"エラー: ナレーション音声の結合中にエラーが発生しました: {e}")
+            return None
         
         # 音声の再生速度を変更して、映像の長さに合わせる
         narration_clip = narration_clip_raw.fx(vfx.speedx, factor=narration_clip_raw.duration / video_duration)
@@ -81,13 +99,22 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
                         print(f"  - 警告: 日本語フォントが見つかりません。英語フォント '{font_path}' で代用します。")
 
                 generator = lambda txt: TextClip(
-                    txt, font=font_path, fontsize=60, color='white',
-                    stroke_color='black', stroke_width=2, method='caption', size=(800, None)
+                    txt, 
+                    font=font_path, 
+                    fontsize=settings['video_composer']['font_size'], # settings から取得
+                    color=settings['video_composer']['font_color'], # settings から取得
+                    stroke_color=settings['video_composer']['font_stroke_color'], # settings から取得
+                    stroke_width=settings['video_composer']['font_stroke_width'], # settings から取得
+                    method='caption', 
+                    size=(settings['video_composer']['subtitle_width'], None) # settings から取得
                 )
                 subtitles = SubtitlesClip(subtitle_file, generator)
-                subtitles_clip = subtitles.set_position(('center', 0.8))
-            except Exception as e:
-                print(f"  - 警告: 字幕クリップの作成に失敗しました: {e}")
+                subtitles_clip = subtitles.set_position(('center', settings['video_composer']['subtitle_position_y_ratio'])) # settings から取得
+            except (IOError, OSError) as e: # フォントファイル読み込みエラー
+                print(f"  - 警告: フォントファイル ({font_path}) の読み込みエラー: {e}")
+                subtitles_clip = None
+            except Exception as e: # その他の予期せぬエラー
+                print(f"  - 警告: 字幕クリップの作成中に予期せぬエラーが発生しました: {e}")
                 subtitles_clip = None
         else:
             subtitles_clip = None
@@ -97,10 +124,13 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
         bgm_clip = None
         if bgm_path and os.path.exists(bgm_path):
             try:
-                bgm_clip_full = AudioFileClip(bgm_path).volumex(0.08)
+                # bgm_volume を settings から取得
+                bgm_clip_full = AudioFileClip(bgm_path).volumex(settings['video_composer']['bgm_volume'])
                 bgm_clip = afx.audio_loop(bgm_clip_full, duration=video_duration)
-            except Exception as e:
-                print(f"  - 警告: BGM読み込み/加工エラー: {e}")
+            except (IOError, OSError) as e: # BGMファイル読み込みエラー
+                print(f"  - 警告: BGMファイル ({bgm_path}) の読み込みエラー: {e}")
+            except Exception as e: # その他の予期せぬエラー
+                print(f"  - 警告: BGMの読み込み/加工中に予期せぬエラーが発生しました: {e}")
 
         # --- 5. 音声を合成 ---
         print("  - 音声を合成中...")
@@ -114,7 +144,7 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
         if subtitles_clip:
             final_clip = CompositeVideoClip([final_clip, subtitles_clip])
         final_clip.duration = video_duration
-        final_clip.fps = 24
+        final_clip.fps = settings['video_composer']['output_fps'] # settings から取得
 
         # --- 7. 動画ファイルとして書き出し ---
         output_dir = "output/videos"

@@ -2,7 +2,10 @@
 import csv
 from datetime import datetime
 
-def log_video(video_file, theme, images, style, bgm_file, log_file="output/logs/log.csv"):
+# log_video 関数の引数に settings を追加
+def log_video(video_file, theme, images, style, bgm_file, settings):
+    # log_file を settings から取得
+    log_file = settings['general']['log_file_path']
     with open(log_file, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow([video_file, theme, ";".join(images), style, bgm_file, datetime.now()])

@@ -46,14 +46,18 @@ def generate_subtitles(theme, audio_segments_info): # Changed signature
         output_path = os.path.join(output_dir, f"{current_date}_{safe_theme_name}.srt")
 
         # ファイルに書き出し
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
+        try:
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+        except IOError as e:
+            print(f"  - エラー: 字幕ファイルの書き込みに失敗しました: {e}")
+            return None
 
         print(f"  -> 字幕生成完了: {output_path}")
         return output_path
 
     except Exception as e:
-        print(f"  - 字幕生成エラー: {e}")
+        print(f"  - 字幕生成中に予期せぬエラーが発生しました: {e}")
         return None
 
 def _seconds_to_hms(seconds):

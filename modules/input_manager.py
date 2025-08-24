@@ -2,6 +2,7 @@
 import argparse
 import feedparser
 import random
+import traceback # 追加
 from .theme_selector import filter_duplicate_themes, select_themes_for_batch
 
 def parse_args():
@@ -35,12 +36,19 @@ def fetch_news_rss(rss_url="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja")
         response.raise_for_status() # Raise an exception for HTTP errors
         feed = feedparser.parse(response.content) # Pass content to feedparser
     except requests.exceptions.RequestException as e:
-        print(f"RSSフィードの取得に失敗しました: {e}")
+        print(f"エラー: RSSフィードの取得に失敗しました。ネットワーク接続またはURLを確認してください: {e}")
+        traceback.print_exc() # 詳細なスタックトレースを出力
+        return []
+    except Exception as e: # その他の予期せぬエラーを捕捉
+        print(f"エラー: RSSフィードの取得中に予期せぬエラーが発生しました: {e}")
+        traceback.print_exc()
         return []
     
     if feed.bozo:
-        print(f"RSSフィードの解析に失敗しました: {feed.bozo_exception}")
-        return []
+        print(f"警告: RSSフィードの解析中に問題が発生しました: {feed.bozo_exception}")
+        # 解析エラーがあっても、可能な限りニュースアイテムを返す
+        news_items = [entry.title for entry in feed.entries]
+        return news_items
     news_items = [entry.title for entry in feed.entries]
     return news_items
 
