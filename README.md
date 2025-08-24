@@ -1,130 +1,70 @@
-# ショート動画自動生成パイプライン
-# 「しくじり先生風ニュース連動ショート」
-# フル自動 + 手動ハイブリッド対応
+# Short News Education Automation
 
-【概要】
-本パイプラインは、ニュースやトレンド情報を基に、短尺（60秒以内）の
-「しくじり先生風ショート動画」を自動生成するシステムです。
-完全自動化に加え、手動画像や台本の差し替えも可能なハイブリッド設計です。
-出力は縦動画MP4形式で、TikTok / YouTube Shorts用に最適化されています。
+## 概要・主要機能
 
----
+このプロジェクトは、最新のニュースを基に教育コンテンツを自動生成し、YouTubeに投稿するツールです。
 
-【主な機能】
+### 主要機能
 
-1. ニュース取得
-   * Google News RSSやトレンド情報からテーマを自動抽出
-   * 引数でテーマ指定も可能
+- **ニュース記事の取得**: RSSフィードから最新のニュース記事を自動的に取得します。
+- **スクリプト生成**: 取得したニュース記事を基に、教育的なショートビデオ用のスクリプトを生成します。
+- **音声生成**: 生成されたスクリプトを**Google Cloud TTS**を使用して自然な音声に変換します。
+- **画像生成**: スクリプトの内容に基づき、以下の方法で画像を生成します。
+    - **Stable Diffusion**: 高品質な画像を生成します。
+    - **Google Search**: 関連する画像をウェブから検索・取得します。
+    - **DALL-E**: AIによる創造的な画像を生成します。
+- **ビデオ合成**: 生成された音声、画像、および字幕を組み合わせて、60秒程度のショートビデオを自動的に作成します。
+- **YouTube投稿**: 生成されたビデオをYouTubeに自動的にアップロードし、公開します。
 
-2. 台本生成
-   * Gemini API / LLM を使用して、面白く教養的な台本を生成
-   * 文体、テンポ、フック、SEO・バズ要素を自動調整
+## 引数仕様
 
-3. 画像生成・管理
-   * AIによる偉人や失敗シーンのイラスト生成
-   * 手動画像を優先採用、足りない分を自動生成で補填
-   * 画像の偏り・重複を自動チェック
-   * **MoviePy 2.x 系では `resize` → `resized` を使用**
+本ツールは、以下のコマンドライン引数に対応しています。
 
-4. 音声生成
-   * ElevenLabs TTSで台本を音声化
-   * 声質・感情・速度調整可能
-   * 動画にセットする場合、**`subclip` → `subclipped`** を使用して任意秒数に切り出し
+| 引数名               | 説明                                                                 | デフォルト値 |
+| :------------------- | :------------------------------------------------------------------- | :----------- |
+| `--use-sd_api`       | Stable Diffusion APIを使用して画像を生成します。                     | `False`      |
+| `--use-google-search`| Google Search APIを使用して画像を検索・取得します。                  | `False`      |
+| `--use-dalle`        | DALL-E APIを使用して画像を生成します。                               | `False`      |
+| `--post-to-youtube`  | 生成されたビデオをYouTubeに自動投稿します。                          | `False`      |
 
-5. BGM設定
-   * 指定MP3または自動選定
-   * 音量調整でセリフを邪魔しない
-   * BGMは60秒以上必要です。60秒未満のファイルが指定された場合は、エラーで処理を停止します。
+## 推奨環境
 
-6. 動画生成
-   * moviepy / FFmpegで縦動画MP4作成
-   * 画像スライド、音声、字幕、BGMを合成
-   * 縦画面対応（TikTok / YouTube Shorts用）
-   * **画像クリップの duration は `set_duration` → `with_duration`**
+本プロジェクトは以下の環境で動作確認されています。
 
-7. 投稿・管理自動化
-   * TikTok / YouTube Shorts APIで自動投稿
-   * タイトル・説明文・ハッシュタグ自動生成
-   * 出力動画ログ管理（テーマ・画像・画風・BGM・生成日時）
+- Python 3.x
 
-8. 量産対応
-   * バッチ生成で複数動画量産
-   * 引数指定 or 自動生成で1回の実行で複数本生成可能
+### 必要なライブラリ
 
----
+`requirements.txt` に記載されているライブラリをインストールしてください。
 
-【引数仕様】
+```bash
+pip install -r requirements.txt
+```
 
-* theme       : 動画のテーマ（省略時は自動取得）
-* bgm_path    : BGMファイルパス（省略時は自動選定）
-* style       : 画像の画風（省略時は自動選定）
-* script_file : 台本ファイルを指定（省略時はGemini自動生成）
+現在の `requirements.txt` の内容:
+- `requests`
+- `google-generativeai`
+- `google-cloud-texttospeech`
+- `moviepy==1.0.3`
+- `numpy`
+- `feedparser`
+- `Pillow==9.5.0`
+- `PyYAML`
+- `pytest`
+- `openai`
+- `google-api-python-client`
+- `google-auth-httplib2`
+- `google-auth-oauthlib`
 
-使用例:
+## 運用フロー
 
-1. 完全自動生成
-   ```bash
-   python make_short.py
-   ```
+1. スクリプトがニュース記事を取得し、ビデオスクリプトを生成します。
+2. 生成されたスクリプトに基づいて、音声と画像が生成されます。画像生成は、`--use-sd_api`, `--use-google-search`, `--use-dalle` の引数に応じて、Stable Diffusion、Google Search、DALL-Eのいずれかまたは複数を組み合わせて行われます。
+3. 音声、画像、字幕が合成され、ショートビデオが作成されます。
+4. `--post-to-youtube` 引数が指定されている場合、生成されたビデオはYouTubeに自動的に投稿されます。
 
-2. テーマ指定
-   ```bash
-   python make_short.py "ダイナマイト事故"
-   ```
+## 注意点
 
-3. テーマ+BGM+画風指定
-   ```bash
-   python make_short.py "ダイナマイト事故" "bgm.mp3" "コミカル・ポップ"
-   ```
-
----
-
-【運用フロー】
-
-1. ニュースRSS / 引数指定 → テーマ選定
-2. Gemini API / LLM → 台本生成 + クオリティチェック
-3. 画像選定
-   * 手動画像優先
-   * 足りない分を自動生成で補填
-   * 画像重複チェック・バリエーション調整
-   * **MoviePy 2.x 系対応: `resized`, `with_duration`**
-4. ElevenLabs TTS → 音声生成
-5. BGM選定・音量調整
-   * BGMを選定し、音量を調整します。BGMの長さは60秒以上である必要があり、短い場合はエラーとなります。
-6. moviepy / FFmpeg → 縦動画MP4生成
-   * 音声クリップは `subclipped` を使用して60秒に切り出し
-7. サムネイル・タイトル・説明文生成
-8. 投稿・管理ログ更新 → TikTok / YouTube Shorts自動投稿
-
----
-
-【拡張ポイント】
-
-* Gemini API: 台本、画像プロンプト、タイトル、説明文生成
-* ElevenLabs: 高品質TTS音声生成
-* 手動画像統合: 自動生成画像と混在可能
-* 投稿自動化: タイトル・説明文・タグ付与
-* バズ最適化: SEO・トレンド連動、ハッシュタグ生成
-* 運用効率化: バッチ生成、プリセット管理、エラー自動補填
-
----
-
-【推奨環境】
-
-* Python 3.10+
-* ライブラリ:
-  * openai / Gemini APIクライアント
-  * requests (ElevenLabs TTS呼び出し)
-  * moviepy / FFmpeg（MoviePy 2.x 系対応）
-  * その他: pandas (ログ管理), os, random
-
----
-
-【注意点】
-
-* Gemini API / ElevenLabsのAPIキーが必要
-* 投稿自動化には各SNSのAPI権限が必要
-* 生成画像・音声は著作権や肖像権に注意
-* 量産時はリソース負荷（画像生成・音声生成・動画合成）に注意
-* MoviePy 2.x 系ではメソッド名が旧バージョンと異なるため注意
-  * 例: `resize → resized`, `set_duration → with_duration`, `subclip → subclipped`
+- YouTubeへの自動投稿機能を利用するには、Google Cloud Platformでプロジェクトを作成し、YouTube Data APIを有効にする必要があります。また、OAuth 2.0クライアントIDを設定し、`client_secret.json` ファイルをプロジェクトのルートディレクトリに配置する必要があります。初回実行時には、OAuth認証フローが開始され、ブラウザでの認証が必要になります。
+- Google Custom Search APIを利用して画像を検索する場合、Google Cloud PlatformでCustom Search APIを有効にし、APIキーと検索エンジンID（CX）を設定する必要があります。
+- DALL-E APIを利用して画像を生成する場合、OpenAIのAPIキーを設定する必要があります。
