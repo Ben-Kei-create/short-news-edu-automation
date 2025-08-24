@@ -50,7 +50,7 @@ Output only the {num} raw prompts, one per line, with no numbering, bullet point
         print(f"  - Geminiでのプロンプト生成中にエラー: {e}")
         return []
 
-def generate_images(theme, style, num=12, use_sd_api=False):
+def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_model=None, lora_weight=0.8):
     """
     テーマとスタイルに基づき、AIで画像を生成する。
     use_sd_api=Trueの場合、Stable Diffusion APIを呼び出す。
@@ -61,13 +61,18 @@ def generate_images(theme, style, num=12, use_sd_api=False):
     # --- Stable Diffusion APIを使用する場合 ---
     if use_sd_api:
         print("  - Stable Diffusion APIを使用して画像を生成します。")
+        if sd_model:
+            print(f"    - ベースモデル: {sd_model}")
+        if lora_model:
+            print(f"    - LoRAモデル: {lora_model} (強度: {lora_weight})")
+
         image_prompts = _generate_image_prompts(theme, style, num)
         if not image_prompts:
             print("  - 画像プロンプトを生成できなかったため、処理をスキップします。")
             return []
 
         # タイムスタンプ付きの保存ディレクトリを作成
-        save_dir = f"input/images/{datetime.now().strftime('%Y%m%d_%H%M')}"
+        save_dir = f"input/images/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         os.makedirs(save_dir, exist_ok=True)
         print(f"  - 画像保存先: {save_dir}")
 
@@ -75,14 +80,27 @@ def generate_images(theme, style, num=12, use_sd_api=False):
         sd_api_url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
 
         for i, p in enumerate(image_prompts):
-            print(f"    - 画像 {i+1}/{len(image_prompts)} を生成中... (Prompt: {p[:50]}...)")
+            print(f"    - 画像 {i+1}/{len(image_prompts)} を生成中... (Prompt: {p[:40]}...)")
+            
+            # プロンプトに高品質化・LoRAキーワードを追加
+            quality_keywords = "masterpiece, best quality, 8k, ultra-detailed, sharp focus, dynamic angle, cinematic lighting"
+            lora_prompt = f" <lora:{lora_model}:{lora_weight}>" if lora_model else ""
+            final_prompt = f"{p}, ({style}), {quality_keywords}{lora_prompt}"
+
             payload = {
-                "prompt": p,
+                "prompt": final_prompt,
                 "steps": 25,
                 "width": 512,
                 "height": 768,
-                "negative_prompt": "(worst quality, low quality:1.4), (blurry:1.2), deformed, ugly"
+                "negative_prompt": "(worst quality, low quality:1.4), (blurry:1.2), deformed, ugly, watermark, text, signature"
             }
+
+            # ベースモデル切り替え設定
+            if sd_model:
+                payload["override_settings"] = {
+                    "sd_model_checkpoint": sd_model
+                }
+
             try:
                 r = requests.post(sd_api_url, json=payload, timeout=300)
                 r.raise_for_status()

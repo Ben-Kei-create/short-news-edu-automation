@@ -6,12 +6,22 @@ from .theme_selector import filter_duplicate_themes, select_themes_for_batch
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ショート動画自動生成パイプライン")
+    # 全般設定
     parser.add_argument("--theme", type=str, nargs='+', help="動画テーマを1つ以上指定")
     parser.add_argument("--bgm_path", type=str, help="BGMファイルパス")
-    parser.add_argument("--style", type=str, default="cinematic, dramatic", help="画像の画風")
     parser.add_argument("--script_file", type=str, help="台本ファイルパス")
     parser.add_argument("--manual_images", type=str, help="手動画像フォルダパス")
+
+    # Stable Diffusion設定
     parser.add_argument("--use_sd_api", action='store_true', help="Stable Diffusion APIを使用して画像を生成する")
+    parser.add_argument("--style", type=str, default="cinematic, dramatic", help="画像の画風に関連するプロンプト")
+    parser.add_argument("--sd_model", type=str, help="使用するStable Diffusionのベースモデル名")
+    parser.add_argument("--lora_model", type=str, help="使用するLoRAモデル名 (拡張子なし)")
+    parser.add_argument("--lora_weight", type=float, default=0.8, help="LoRAの適用強度 (デフォルト: 0.8)")
+
+    # 字幕・フォント設定
+    parser.add_argument("--font", type=str, help="字幕に使用するフォントファイル名 (input/fonts/ 内)")
+
     return parser.parse_args()
 
 import requests # Added import

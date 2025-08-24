@@ -13,6 +13,15 @@ venv/
 output/
 temp/
 
+# Generated files
+input/images/*/
+input/bgm/*.mp3
+*.mp4
+*.srt
+*.jpg
+*.png
+*.wav
+
 # OS generated files
 .DS_Store
 Thumbs.db

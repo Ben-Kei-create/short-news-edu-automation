@@ -29,7 +29,8 @@ def generate_voice(script_text):
 
     # 音声フォーマットの設定 (MP3)
     audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        speaking_rate=1.25 # 話速を1.25倍に設定
     )
 
     temp_dir = "temp"

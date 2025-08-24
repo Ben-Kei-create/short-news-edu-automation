@@ -36,10 +36,13 @@ def process_single_video(theme, args):
     manual_images = load_manual_images(args.manual_images)
     num_images_needed = 12 # 1枚5秒 x 12枚 = 60秒
     generated_images = generate_images(
-        theme,
-        args.style,
-        num_images_needed - len(manual_images),
-        args.use_sd_api
+        theme=theme,
+        style=args.style,
+        num=num_images_needed - len(manual_images),
+        use_sd_api=args.use_sd_api,
+        sd_model=args.sd_model,
+        lora_model=args.lora_model,
+        lora_weight=args.lora_weight
     )
     images = manual_images + generated_images
     print(f"-> 使用する画像: {images}")
@@ -75,7 +78,14 @@ def process_single_video(theme, args):
 
     # --- 動画合成 ---
     print("6. 動画を合成中...")
-    video_file = compose_video(theme, images, audio_segments_info, bgm_file, subtitle_file)
+    video_file = compose_video(
+        theme=theme, 
+        images=images, 
+        audio_segments_info=audio_segments_info, 
+        bgm_file=bgm_file, 
+        subtitle_file=subtitle_file,
+        font_filename=args.font
+    )
     if not video_file:
         print("エラー: 動画合成に失敗しました。このテーマの処理を中断します。")
         return
