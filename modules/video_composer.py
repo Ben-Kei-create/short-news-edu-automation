@@ -4,7 +4,7 @@ from moviepy.video.tools.subtitles import SubtitlesClip
 from moviepy.audio.fx import all as afx
 import numpy as np
 
-def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, font_filename=None):
+def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, font_filename=None, image_duration=5.0):
     """
     複数の画像、ナレーション、BGM、字幕を結合して一つの動画を生成する。
     画像の表示時間は5秒に固定し、音声の長さをそれに合わせる。
@@ -19,8 +19,8 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
 
     try:
         # --- 1. 画像クリップを作成 (5秒/枚に固定) ---
-        print("  - 画像スライドショーを作成中 (5秒/枚)... ")
-        duration_per_image = 5
+        print(f"  - 画像スライドショーを作成中 ({image_duration}秒/枚)... ")
+        duration_per_image = image_duration
         image_clips = []
         for img_path in images:
             if not os.path.exists(img_path):
@@ -53,7 +53,7 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
         narration_clip_raw = concatenate_audioclips(valid_audio_clips)
         
         # 音声の再生速度を変更して、映像の長さに合わせる
-        narration_clip = narration_clip_raw.fx(afx.speedx, factor=narration_clip_raw.duration / video_duration)
+        narration_clip = narration_clip_raw.fx(vfx.speedx, factor=narration_clip_raw.duration / video_duration)
 
         # --- 3. 字幕クリップを作成 ---
         print("  - 字幕を準備中...")

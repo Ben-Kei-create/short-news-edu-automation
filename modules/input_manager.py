@@ -22,6 +22,9 @@ def parse_args():
     # 字幕・フォント設定
     parser.add_argument("--font", type=str, help="字幕に使用するフォントファイル名 (input/fonts/ 内)")
 
+    # 動画設定
+    parser.add_argument("--image_duration", type=float, default=5.0, help="各画像の表示時間 (秒) (デフォルト: 5.0)")
+
     return parser.parse_args()
 
 import requests # Added import

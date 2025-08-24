@@ -82,9 +82,10 @@ def process_single_video(theme, args):
         theme=theme, 
         images=images, 
         audio_segments_info=audio_segments_info, 
-        bgm_file=bgm_file, 
+        bgm_path=bgm_file, 
         subtitle_file=subtitle_file,
-        font_filename=args.font
+        font_filename=args.font,
+        image_duration=args.image_duration
     )
     if not video_file:
         print("エラー: 動画合成に失敗しました。このテーマの処理を中断します。")
