@@ -1,47 +1,84 @@
 # modules/audio_manager.py
 import os
 import uuid
-import requests
 from dotenv import load_dotenv
+from google.cloud import texttospeech # New import
+from moviepy.audio.io.AudioFileClip import AudioFileClip # New import
 
-def generate_voice(script_text, voice_id="21m00Tcm4TlvDq8ikWAM"):
+def generate_voice(script_text):
     """
-    ElevenLabs TTSで台本を音声化し、tempフォルダにユニークなファイル名で保存する。
+    Google Cloud TTSで台本を音声化し、tempフォルダにユニークなファイル名で保存する。
+    テキストを文やフレーズに分割し、それぞれの音声ファイルパスと再生時間を返す。
     """
     load_dotenv()
-    api_key = os.getenv("ELEVENLABS_API_KEY")
-    if not api_key:
-        raise ValueError("環境変数 'ELEVENLABS_API_KEY' が設定されていません。")
+    # Google Cloud TTSクライアントはGOOGLE_APPLICATION_CREDENTIALS環境変数を使用します
+    # そのため、APIキーを直接コード内で設定する必要はありません。
+    # 環境変数が設定されていない場合は、認証エラーが発生します。
+    try:
+        client = texttospeech.TextToSpeechClient()
+    except Exception as e:
+        print(f"  - エラー: Google Cloud TTSクライアントの初期化に失敗しました。認証情報を確認してください: {e}")
+        return []
 
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": api_key
-    }
-    data = {
-        "text": script_text,
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {
-            "stability": 0.7,
-            "similarity_boost": 0.75
-        }
-    }
+    # 音声の設定 (日本語、女性の声、標準)
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="ja-JP",
+        name="ja-JP-Wavenet-A", # 高品質なWavenetボイス
+        ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+    )
+
+    # 音声フォーマットの設定 (MP3)
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
 
     temp_dir = "temp"
     os.makedirs(temp_dir, exist_ok=True)
-    output_path = os.path.join(temp_dir, f"voice_{uuid.uuid4()}.mp3")
 
-    try:
-        response = requests.post(url, json=data, headers=headers)
-        response.raise_for_status()
+    # テキストを文やフレーズに分割
+    # 日本語の句読点に基づいて分割します。より高度な分割が必要な場合は、別途ライブラリを検討してください。
+    # 句読点の後にスペースがない場合も考慮
+    segments = []
+    current_segment = ""
+    for char in script_text:
+        current_segment += char
+        if char in ["。", "！", "？", ".", "!", "?"]:
+            segments.append(current_segment.strip())
+            current_segment = ""
+    if current_segment.strip(): # 最後のセグメントが句読点で終わらない場合
+        segments.append(current_segment.strip())
 
-        with open(output_path, 'wb') as f:
-            f.write(response.content)
-        
-        print(f"  -> 音声生成完了: {output_path}")
-        return output_path
+    audio_segments_info = []
 
-    except requests.exceptions.RequestException as e:
-        print(f"  - 音声生成エラー: {e}")
-        return None
+    print(f"  - テキストを{len(segments)}個のセグメントに分割しました。")
+
+    for i, segment_text in enumerate(segments):
+        if not segment_text:
+            continue
+
+        synthesis_input = texttospeech.SynthesisInput(text=segment_text)
+        output_path = os.path.join(temp_dir, f"voice_{uuid.uuid4()}.mp3")
+
+        try:
+            response = client.synthesize_speech(
+                input=synthesis_input, voice=voice, audio_config=audio_config
+            )
+
+            with open(output_path, "wb") as out:
+                out.write(response.audio_content)
+            
+            # 音声ファイルの再生時間を取得
+            audio_clip = AudioFileClip(output_path)
+            duration = audio_clip.duration
+            audio_clip.close() # リソースを解放
+
+            audio_segments_info.append({"path": output_path, "duration": duration, "text": segment_text})
+            print(f"    - セグメント {i+1}: {output_path} ({duration:.2f}秒)")
+
+        except Exception as e:
+            print(f"  - 音声生成エラー (セグメント '{segment_text[:30]}...'): {e}")
+            # エラーが発生したセグメントはスキップするか、エラーハンドリングを強化する
+            # ここでは空の情報を追加して処理を続行
+            audio_segments_info.append({"path": None, "duration": 0, "text": segment_text})
+
+    return audio_segments_info

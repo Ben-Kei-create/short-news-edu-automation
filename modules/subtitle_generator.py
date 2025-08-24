@@ -2,43 +2,40 @@
 import os
 from pathlib import Path
 
-def generate_subtitles(theme, script_text, audio_file):
+def generate_subtitles(theme, audio_segments_info): # Changed signature
     """
-    台本から簡易的に字幕ファイル(SRT)を生成する。
-    注意: 音声タイミングの完全な自動同期は高度な処理が必要なため、
-          ここでは1文ごとに固定秒数で区切る簡易的なサンプルとなっている。
+    音声セグメントの情報から字幕ファイル(SRT)を生成する。
+    各セグメントの正確な再生時間を使用して、より正確な字幕を生成する。
     
     Args:
         theme (str): 動画のテーマ。出力ファイル名に使用。
-        script_text (str): 台本テキスト。
-        audio_file (str): 音声ファイル（全体の秒数取得用）。
+        audio_segments_info (list): 音声セグメントの情報（パス、再生時間、テキスト）のリスト。
 
     Returns:
         str: 生成されたSRTファイルのパス。失敗した場合はNone。
     """
     try:
-        # moviepyは比較的大きなライブラリなので、必要な時だけインポート
-        from moviepy.audio.io.AudioFileClip import AudioFileClip
-        audio_clip = AudioFileClip(audio_file)
-        total_duration = audio_clip.duration
-
-        # 台本を句点（。）で改行し、文ごとに分割
-        sentences = [s.strip() for s in script_text.replace("。", "。\n").split("\n") if s.strip()]
-        if not sentences:
-            print("  - 字幕を生成する文がありません。")
+        if not audio_segments_info:
+            print("  - 字幕を生成する音声セグメントがありません。")
             return None
         
-        num_sentences = len(sentences)
-        duration_per_sentence = total_duration / num_sentences
-
-        # SRTフォーマットの文字列を作成
         lines = []
-        for i, sentence in enumerate(sentences):
-            start_time = i * duration_per_sentence
-            end_time = start_time + duration_per_sentence
+        current_time = 0.0
+
+        for i, segment in enumerate(audio_segments_info):
+            if segment["path"] is None or segment["duration"] == 0:
+                # エラーなどで音声が生成されなかったセグメントはスキップ
+                continue
+
+            start_time = current_time
+            end_time = current_time + segment["duration"]
+            
             start_hms = _seconds_to_hms(start_time)
             end_hms = _seconds_to_hms(end_time)
-            lines.append(f"{i+1}\n{start_hms} --> {end_hms}\n{sentence}\n\n")
+            
+            lines.append(f"{i+1}\n{start_hms} --> {end_hms}\n{segment['text']}\n\n")
+            
+            current_time = end_time
 
         # 出力パスを生成
         output_dir = "output/subtitles"

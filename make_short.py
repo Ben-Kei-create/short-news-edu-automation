@@ -34,30 +34,47 @@ def process_single_video(theme, args):
     # --- 画像準備 ---
     print("2. 画像を準備中...")
     manual_images = load_manual_images(args.manual_images)
-    num_images_needed = 5  # 仮: 60秒動画なら5枚スライド
+    num_images_needed = 12 # 1枚5秒 x 12枚 = 60秒
     generated_images = generate_images(theme, args.style, num_images_needed - len(manual_images))
     images = manual_images + generated_images
     print(f"-> 使用する画像: {images}")
 
     # --- 音声生成 ---
     print("3. 音声を生成中...")
-    audio_file = generate_voice(script_text)
-    print(f"-> 音声ファイル: {audio_file}")
+    audio_segments_info = generate_voice(script_text) # Modified
+    if not audio_segments_info:
+        print("エラー: 音声生成に失敗しました。")
+        return
+
+    # --- 音声長チェック ---
+    total_duration = sum(segment['duration'] for segment in audio_segments_info if segment['duration'] is not None)
+    print(f"-> 生成された音声の合計時間: {total_duration:.2f}秒")
+    if total_duration < 58: # 少しマージンを持たせる
+        print(f"エラー: 生成された音声が60秒に満たないため ({total_duration:.2f}秒)、処理を中断します。台本を長くしてください。")
+        return
+    
+    print(f"-> 音声セグメント情報: {len(audio_segments_info)}個のセグメント") # Modified
 
     # --- BGM準備 ---
     print("4. BGMを準備中...")
     bgm_file = select_bgm(args.bgm_path)
     print(f"-> BGMファイル: {bgm_file}")
 
-    # --- 動画合成 ---
-    print("5. 動画を合成中...")
-    video_file = compose_video(theme, images, audio_file, bgm_file)
-    print(f"-> 動画ファイル: {video_file}")
-
     # --- 字幕生成 ---
-    print("6. 字幕を生成中...")
-    subtitle_file = generate_subtitles(theme, script_text, audio_file)
-    print(f"-> 字幕ファイル: {subtitle_file}")
+    print("5. 字幕を生成中...")
+    subtitle_file = generate_subtitles(theme, audio_segments_info)
+    if not subtitle_file:
+        print("警告: 字幕ファイルの生成に失敗しました。字幕なしで処理を続行します。")
+    else:
+        print(f"-> 字幕ファイル: {subtitle_file}")
+
+    # --- 動画合成 ---
+    print("6. 動画を合成中...")
+    video_file = compose_video(theme, images, audio_segments_info, bgm_file, subtitle_file)
+    if not video_file:
+        print("エラー: 動画合成に失敗しました。このテーマの処理を中断します。")
+        return
+    print(f"-> 動画ファイル: {video_file}")
 
     # --- サムネイル生成 ---
     print("7. サムネイルを生成中...")

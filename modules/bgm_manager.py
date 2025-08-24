@@ -12,7 +12,7 @@ def select_bgm(bgm_path=None):
 
     # デフォルトBGMの候補 (優先順位順)
     default_bgm_candidates = [
-        "assets/bgm/default_bgm.mp3", # 優先: assetsフォルダ内のデフォルトBGM
+        "input/bgm/default_bgm.mp3", # 優先: inputフォルダ内のデフォルトBGM
         "sample.mp4",                 # 次点: プロジェクトルートにある既存のサンプル
     ]
 
@@ -22,4 +22,4 @@ def select_bgm(bgm_path=None):
             return candidate
     
     # どのBGMも見つからなかった場合
-    raise FileNotFoundError("BGMファイルが見つかりません。'assets/bgm/default_bgm.mp3' または 'sample.mp4' を配置するか、--bgm_path で指定してください。")
+    raise FileNotFoundError("BGMファイルが見つかりません。'input/bgm/default_bgm.mp3' または 'sample.mp4' を配置するか、--bgm_path で指定してください。")
