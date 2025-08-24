@@ -1,7 +1,8 @@
 # modules/script_generator.py
 import os
 import google.generativeai as genai
-# from dotenv import load_dotenv # 削除
+# google.generativeai.types を使用するようにインポートを修正
+from google.generativeai import types
 
 # generate_script 関数の引数に settings を追加
 def generate_script(theme, settings):
@@ -99,11 +100,8 @@ def generate_script(theme, settings):
         # 生成されたテキストを返す
         return response.text.strip()
 
-    except genai.types.BlockedPromptException as e:
+    except types.BlockedPromptException as e:
         print(f"エラー: Gemini APIが不適切なコンテンツを検出しました。プロンプトを調整してください: {e}")
-        return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
-    except genai.types.APIError as e:
-        print(f"エラー: Gemini APIの呼び出し中にAPIエラーが発生しました。APIキーまたはネットワーク接続を確認してください: {e}")
         return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
     except Exception as e:
         print(f"エラー: Gemini APIの呼び出し中に予期せぬエラーが発生しました: {e}")

@@ -1,6 +1,8 @@
 import os
 import glob
 import google.generativeai as genai
+# google.generativeai.types を使用するようにインポートを修正
+from google.generativeai import types
 # from dotenv import load_dotenv # 削除
 import requests
 import base64
@@ -37,6 +39,15 @@ Generate exactly {num} distinct, visually compelling image prompts for a YouTube
 The style should be '{style}'.
 Each prompt must be a single, concise sentence, suitable for direct input into an image generation AI.
 Focus on diverse scenes and compositions that capture the essence of the topic.
+Ensure the prompts are highly descriptive and evoke strong visual imagery.
+Consider the following aspects for each prompt:
+- **Subject**: What is the main focus of the image?
+- **Action/Emotion**: What is happening or what emotion is conveyed?
+- **Setting/Environment**: Where is the scene taking place?
+- **Lighting/Atmosphere**: What is the mood or time of day?
+- **Composition/Angle**: How is the scene framed? (e.g., close-up, wide shot, dynamic angle)
+- **Color Palette**: What colors dominate the scene?
+
 Output only the {num} raw prompts, one per line, with no numbering, bullet points, conversational text, or introductory/concluding phrases.
 """
 
@@ -48,11 +59,8 @@ Output only the {num} raw prompts, one per line, with no numbering, bullet point
             print(f"  - 警告: Geminiが要求された{num}件ではなく、{len(prompts)}件のプロンプトを返しました。")
         
         return prompts
-    except genai.types.BlockedPromptException as e:
+    except types.BlockedPromptException as e:
         print(f"  - エラー: Gemini APIが不適切なコンテンツを検出しました。プロンプトを調整してください: {e}")
-        return []
-    except genai.types.APIError as e:
-        print(f"  - エラー: Gemini APIの呼び出し中にAPIエラーが発生しました。APIキーまたはネットワーク接続を確認してください: {e}")
         return []
     except Exception as e:
         print(f"  - エラー: Geminiでのプロンプト生成中に予期せぬエラーが発生しました: {e}")
@@ -155,4 +163,3 @@ def generate_images(theme, style, num=12, use_sd_api=False, sd_model=None, lora_
             print(f"    - 警告: プレースホルダー画像 '{placeholder_image}' が見つかりません。")
             return []
         return [placeholder_image] * num
-

@@ -4,6 +4,8 @@ import uuid
 from dotenv import load_dotenv
 from google.cloud import texttospeech # New import
 from moviepy.audio.io.AudioFileClip import AudioFileClip # New import
+# google.api_core.exceptions を正しくインポート
+import google.api_core.exceptions
 
 # generate_voice 関数の引数に settings を追加
 def generate_voice(script_text, settings):
@@ -17,11 +19,8 @@ def generate_voice(script_text, settings):
     # 環境変数が設定されていない場合は、認証エラーが発生します。
     try:
         client = texttospeech.TextToSpeechClient()
-    except google.api_core.exceptions.GoogleAuthError as e:
-        print(f"  - エラー: Google Cloud TTSクライアントの認証に失敗しました。google_credentials.json または GOOGLE_APPLICATION_CREDENTIALS 環境変数を確認してください: {e}")
-        return []
-    except Exception as e:
-        print(f"  - エラー: Google Cloud TTSクライアントの初期化中に予期せぬエラーが発生しました: {e}")
+    except Exception as e: # より汎用的なExceptionで捕捉
+        print(f"  - エラー: Google Cloud TTSクライアントの初期化に失敗しました。認証情報またはネットワーク接続を確認してください: {e}")
         return []
 
     # 音声の設定 (日本語、女性の声、標準)

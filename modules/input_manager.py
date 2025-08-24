@@ -59,11 +59,13 @@ def get_themes(args, batch_size=3):
     
     print("テーマが指定されていないため、Google Newsから自動取得します。")
     news = fetch_news_rss()
+    print(f"DEBUG: news = {news}") # デバッグ用
     if not news:
         print("ニュースが取得できませんでした。")
         return []
 
     unique_news = filter_duplicate_themes(news)
+    print(f"DEBUG: unique_news = {unique_news}") # デバッグ用
     
     selected_themes = []
 
