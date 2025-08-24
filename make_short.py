@@ -35,7 +35,12 @@ def process_single_video(theme, args):
     print("2. 画像を準備中...")
     manual_images = load_manual_images(args.manual_images)
     num_images_needed = 12 # 1枚5秒 x 12枚 = 60秒
-    generated_images = generate_images(theme, args.style, num_images_needed - len(manual_images))
+    generated_images = generate_images(
+        theme,
+        args.style,
+        num_images_needed - len(manual_images),
+        args.use_sd_api
+    )
     images = manual_images + generated_images
     print(f"-> 使用する画像: {images}")
 

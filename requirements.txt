@@ -1,0 +1,7 @@
+requests
+google-generativeai
+google-cloud-texttospeech
+python-dotenv
+moviepy
+numpy
+feedparser

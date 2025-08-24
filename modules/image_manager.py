@@ -2,6 +2,9 @@ import os
 import glob
 import google.generativeai as genai
 from dotenv import load_dotenv
+import requests
+import base64
+from datetime import datetime
 
 def load_manual_images(folder_path):
     """指定されたフォルダから手動で追加された画像ファイルを読み込む"""
@@ -16,7 +19,6 @@ def load_manual_images(folder_path):
         
     return sorted(list(set(image_files)))
 
-
 def _generate_image_prompts(theme, style, num):
     """Geminiを使用して、画像生成のためのプロンプトを複数作成する"""
     print(f"  - Geminiで画像プロンプトを{num}件生成中...")
@@ -26,10 +28,9 @@ def _generate_image_prompts(theme, style, num):
         raise ValueError("環境変数 'GEMINI_API_KEY' が設定されていません。")
     
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-2.5-flash')
+    model = genai.GenerativeModel('models/gemini-1.5-flash') # Use a model that is available
 
-    prompt = f"""
-You are an expert image prompt engineer.
+    prompt = f"""You are an expert image prompt engineer.
 Generate exactly {num} distinct, visually compelling image prompts for a YouTube short video about the historical topic '{theme}'.
 The style should be '{style}'.
 Each prompt must be a single, concise sentence, suitable for direct input into an image generation AI.
@@ -39,48 +40,75 @@ Output only the {num} raw prompts, one per line, with no numbering, bullet point
 
     try:
         response = model.generate_content(prompt)
-        # Split by newline and strip whitespace from each line
         prompts = [line.strip() for line in response.text.strip().split('\n') if line.strip()]
         
         if len(prompts) != num:
             print(f"  - 警告: Geminiが要求された{num}件ではなく、{len(prompts)}件のプロンプトを返しました。")
-            # Optionally, you could try to regenerate or pad with empty strings/placeholders
-            # For now, we'll proceed with what we got. 
         
         return prompts
     except Exception as e:
         print(f"  - Geminiでのプロンプト生成中にエラー: {e}")
         return []
 
-def generate_images(theme, style, num=5):
+def generate_images(theme, style, num=12, use_sd_api=False):
     """
     テーマとスタイルに基づき、AIで画像を生成する。
-    現在はプロンプト生成のみを実装し、画像はプレースホルダーを返す。
+    use_sd_api=Trueの場合、Stable Diffusion APIを呼び出す。
     """
     if num <= 0:
         return []
 
-    # Step 1: Geminiで画像プロンプトを生成
-    image_prompts = _generate_image_prompts(theme, style, num)
-    if not image_prompts:
-        print("  - 画像プロンプトを生成できなかったため、処理をスキップします。")
-        return []
+    # --- Stable Diffusion APIを使用する場合 ---
+    if use_sd_api:
+        print("  - Stable Diffusion APIを使用して画像を生成します。")
+        image_prompts = _generate_image_prompts(theme, style, num)
+        if not image_prompts:
+            print("  - 画像プロンプトを生成できなかったため、処理をスキップします。")
+            return []
 
-    generated_image_paths = []
-    print(f"  - {len(image_prompts)}件のプロンプトで画像を生成します (現在はプレースホルダーを使用)。")
+        # タイムスタンプ付きの保存ディレクトリを作成
+        save_dir = f"input/images/{datetime.now().strftime('%Y%m%d_%H%M')}"
+        os.makedirs(save_dir, exist_ok=True)
+        print(f"  - 画像保存先: {save_dir}")
 
-    # Step 2: 各プロンプトで画像を生成（現在はプレースホルダー）
-    for i, prompt_text in enumerate(image_prompts):
-        print(f"    - Prompt {i+1}: {prompt_text}")
-        # --- ここに将来的に画像生成AIの呼び出しコードを実装 ---
-        # 例: generated_image = some_image_generator(prompt_text)
-        # -----------------------------------------------------
-        
-        # 仮のプレースホルダー画像を使用
+        generated_image_paths = []
+        sd_api_url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
+
+        for i, p in enumerate(image_prompts):
+            print(f"    - 画像 {i+1}/{len(image_prompts)} を生成中... (Prompt: {p[:50]}...)")
+            payload = {
+                "prompt": p,
+                "steps": 25,
+                "width": 512,
+                "height": 768,
+                "negative_prompt": "(worst quality, low quality:1.4), (blurry:1.2), deformed, ugly"
+            }
+            try:
+                r = requests.post(sd_api_url, json=payload, timeout=300)
+                r.raise_for_status()
+                img_b64 = r.json()['images'][0]
+                img_data = base64.b64decode(img_b64)
+                
+                img_path = os.path.join(save_dir, f"{i+1:04}.png")
+                with open(img_path, "wb") as f:
+                    f.write(img_data)
+                generated_image_paths.append(img_path)
+
+            except requests.exceptions.RequestException as e:
+                print(f"    - エラー: Stable Diffusion APIへの接続に失敗しました: {e}")
+                print("      プレースホルダー画像を使用します。")
+                generated_image_paths.append("example.png") # フォールバック
+            except Exception as e:
+                print(f"    - エラー: 画像生成中に予期せぬエラーが発生しました: {e}")
+                generated_image_paths.append("example.png") # フォールバック
+
+        return generated_image_paths
+
+    # --- APIを使用しない場合（従来のプレースホルダー処理） ---
+    else:
+        print("  - プレースホルダー画像を使用します。")
         placeholder_image = "example.png"
-        if os.path.exists(placeholder_image):
-            generated_image_paths.append(placeholder_image)
-        else:
+        if not os.path.exists(placeholder_image):
             print(f"    - 警告: プレースホルダー画像 '{placeholder_image}' が見つかりません。")
-
-    return generated_image_paths
+            return []
+        return [placeholder_image] * num
