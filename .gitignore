@@ -9,6 +9,12 @@ venv/
 # Environment variables
 .env
 
+# Credentials and Secrets
+google_credentials.json
+client_secret.json
+client_secret.json.json
+youtube_token.json
+
 # Output & Temp folders
 output/
 temp/

@@ -31,8 +31,12 @@ def process_single_video(theme, args, settings):
     try:
         # --- 台本生成 ---
         print("1. 台本を生成中...")
-        # generate_script 関数に settings を渡す
         script_text = generate_script(theme, settings)
+        
+        if not script_text:
+            print(f"エラー: 台本生成に失敗したため、テーマ「{theme}」の処理を中断します。")
+            return # このテーマの処理をスキップ
+
         display_script_text = script_text[:50].replace('\n', ' ')
         print(f"-> 生成された台本: {display_script_text}...")
     except Exception as e:
@@ -146,7 +150,7 @@ def process_single_video(theme, args, settings):
         # --- サムネイル生成 ---
         print("7. サムネイルを生成中...")
         # generate_thumbnail 関数に settings を渡す
-        thumbnail_file = generate_thumbnail(theme, images, settings)
+        thumbnail_file = generate_thumbnail(theme, images, args, settings)
         print(f"-> サムネイルファイル: {thumbnail_file}")
     except Exception as e:
         print(f"エラー: サムネイル生成中に問題が発生しました: {e}")
@@ -164,7 +168,7 @@ def process_single_video(theme, args, settings):
     try:
         # --- SNS投稿 ---
         print("9. SNSに投稿中...")
-        post_to_sns(video_file, title=theme, description=script_text, hashtags=["#しくじり先生", "#短編動画"])
+        post_to_sns(video_file, title=theme, description=script_text, hashtags=["#しくじり先生", "#短編動画"], args=args, settings=settings)
     except Exception as e:
         print(f"エラー: SNS投稿中に問題が発生しました: {e}")
         traceback.print_exc()

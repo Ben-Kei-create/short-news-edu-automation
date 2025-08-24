@@ -4,18 +4,22 @@ import google.generativeai as genai
 # google.generativeai.types を使用するようにインポートを修正
 from google.generativeai import types
 
+import re
+
 # generate_script 関数の引数に settings を追加
 def generate_script(theme, settings):
     """
     Gemini APIを使用して、指定されたテーマで「しくじり先生」風の台本を生成します。
+    成功した場合は台本テキストを、失敗した場合はNoneを返します。
     """
-    # .envファイルから環境変数を読み込む (削除)
-    # load_dotenv()
-    # api_key = os.getenv("GEMINI_API_KEY") # 変更
-    api_key = settings['api_keys']['gemini']
-
-    if not api_key:
-        raise ValueError("設定ファイルに 'api_keys.gemini' が設定されていません。") # エラーメッセージ変更
+    try:
+        api_key = settings['api_keys']['gemini']
+        if not api_key or "ここに" in api_key:
+            print("エラー: settings.yamlに有効な 'api_keys.gemini' が設定されていません。")
+            return None
+    except KeyError:
+        print("エラー: settings.yamlに 'api_keys.gemini' の設定がありません。")
+        return None
 
     # Gemini APIキーを設定
     genai.configure(api_key=api_key)
@@ -23,7 +27,7 @@ def generate_script(theme, settings):
     # プロンプトの作成
     prompt = f"""
 あなたはプロの放送作家です。
-以下のテーマについて、視聴者が最後まで釘付けになる「しくじり先生」風のバズりやすいショート動画の台本を生成してください。
+以下のテーマについて、視聴者が最後まで釘付けになる「しくじり先生」風のショート動画の台本を生成してください。
 動画の長さは厳密に60秒になるように、文字数を調整してください。
 （日本語の場合、60秒のナレーションは約300文字から350文字程度が目安です。）
 
@@ -93,16 +97,26 @@ def generate_script(theme, settings):
 """
 
     try:
-        # Geminiモデルを初期化してコンテンツを生成
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        response = model.generate_content(prompt, request_options={"timeout": 120})
         
-        # 生成されたテキストを返す
-        return response.text.strip()
+        # レスポンスから台本部分のみを抽出
+        match = re.search(r"【台本】(.*?)【文字数】", response.text, re.DOTALL)
+        if match:
+            script_text = match.group(1).strip()
+            if script_text:
+                return script_text
+        
+        print(f"エラー: 生成されたテキストから台本の抽出に失敗しました。")
+        print(f"---
+{response.text[:500]}...
+---")
+        return None
 
     except types.BlockedPromptException as e:
-        print(f"エラー: Gemini APIが不適切なコンテンツを検出しました。プロンプトを調整してください: {e}")
-        return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
+        print(f"エラー: Gemini APIが不適切なコンテンツを検出しました。テーマを変更してください: {e}")
+        return None
     except Exception as e:
         print(f"エラー: Gemini APIの呼び出し中に予期せぬエラーが発生しました: {e}")
-        return f"エラーにより台本を生成できませんでした。テーマ: {theme}"
+        return None
+

@@ -28,6 +28,9 @@ def parse_args():
     # 動画設定
     parser.add_argument("--image_duration", type=float, default=5.0, help="各画像の表示時間 (秒) (デフォルト: 5.0)")
 
+    # SNS投稿設定
+    parser.add_argument("--post-to-youtube", action='store_true', help="生成した動画をYouTubeにアップロードする")
+
     return parser.parse_args()
 
 import requests # Added import
