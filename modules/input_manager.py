@@ -2,8 +2,10 @@
 import argparse
 import feedparser
 import random
-import traceback # 追加
+import traceback
+import requests
 from .theme_selector import filter_duplicate_themes, select_themes_for_batch
+from .utils import load_settings # settingsを読み込むために追加
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ショート動画自動生成パイプライン")
@@ -14,9 +16,9 @@ def parse_args():
     parser.add_argument("--manual_images", type=str, help="手動画像フォルダパス")
 
     # 画像生成AI設定
-    parser.add_argument("--use_sd_api", action='store_true', help="Stable Diffusion APIを使用して画像を生成する")
-    parser.add_argument("--use_google_search", action='store_true', help="Google Custom Searchを使用してWebから画像を検索・利用する")
-    parser.add_argument("--use_dalle", action='store_true', help="DALL-Eを使用して画像を生成する")
+    parser.add_argument("--use_sd_api", action='store_false', default=True, help="Stable Diffusion APIを使用して画像を生成する (デフォルト: True)")
+    parser.add_argument("--use_google_search", action='store_false', default=True, help="Google Custom Searchを使用してWebから画像を検索・利用する (デフォルト: True)")
+    parser.add_argument("--use_dalle", action='store_false', default=True, help="DALL-Eを使用して画像を生成する (デフォルト: True)")
     parser.add_argument("--style", type=str, default="cinematic, dramatic", help="画像の画風に関連するプロンプト")
     parser.add_argument("--sd_model", type=str, help="使用するStable Diffusionのベースモデル名")
     parser.add_argument("--lora_model", type=str, help="使用するLoRAモデル名 (拡張子なし)")
@@ -29,47 +31,90 @@ def parse_args():
     parser.add_argument("--image_duration", type=float, default=5.0, help="各画像の表示時間 (秒) (デフォルト: 5.0)")
 
     # SNS投稿設定
-    parser.add_argument("--post-to-youtube", action='store_true', help="生成した動画をYouTubeにアップロードする")
+    parser.add_argument("--post-to-youtube", action='store_false', default=True, help="生成した動画をYouTubeにアップロードする (デフォルト: True)")
 
     return parser.parse_args()
 
-import requests # Added import
-
-def fetch_news_rss(rss_url="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja"):
+def fetch_news_from_feed(rss_url, keywords=None, categories=None, max_articles=None):
+    """
+    単一のRSSフィードからニュースを取得し、キーワード/カテゴリでフィルタリングする。
+    """
+    news_items = []
     try:
-        response = requests.get(rss_url, verify=False) # Use requests to fetch, disable SSL verify
-        response.raise_for_status() # Raise an exception for HTTP errors
-        feed = feedparser.parse(response.content) # Pass content to feedparser
+        response = requests.get(rss_url, verify=False)
+        response.raise_for_status()
+        feed = feedparser.parse(response.content)
+
+        if feed.bozo:
+            print(f"警告: RSSフィード ({rss_url}) の解析中に問題が発生しました: {feed.bozo_exception}")
+        
+        for entry in feed.entries:
+            title = entry.title
+            content = entry.get('summary', '') or entry.get('description', '') # summary or description for content
+            
+            # キーワードフィルタリング
+            if keywords:
+                if not any(keyword.lower() in title.lower() or keyword.lower() in content.lower() for keyword in keywords):
+                    continue
+            
+            # カテゴリフィルタリング (feedparserのcategoriesはタプルリスト)
+            if categories:
+                entry_categories = [tag['term'].lower() for tag in entry.get('tags', [])]
+                if not any(cat.lower() in entry_categories for cat in categories):
+                    continue
+            
+            news_items.append(title)
+            if max_articles and len(news_items) >= max_articles:
+                break
+
     except requests.exceptions.RequestException as e:
-        print(f"エラー: RSSフィードの取得に失敗しました。ネットワーク接続またはURLを確認してください: {e}")
-        traceback.print_exc() # 詳細なスタックトレースを出力
-        return []
-    except Exception as e: # その他の予期せぬエラーを捕捉
-        print(f"エラー: RSSフィードの取得中に予期せぬエラーが発生しました: {e}")
+        print(f"エラー: RSSフィード ({rss_url}) の取得に失敗しました。詳細: {e}")
         traceback.print_exc()
-        return []
-    
-    if feed.bozo:
-        print(f"警告: RSSフィードの解析中に問題が発生しました: {feed.bozo_exception}")
-        # 解析エラーがあっても、可能な限りニュースアイテムを返す
-        news_items = [entry.title for entry in feed.entries]
-        return news_items
-    news_items = [entry.title for entry in feed.entries]
+    except Exception as e:
+        print(f"エラー: RSSフィード ({rss_url}) の処理中に予期せぬエラーが発生しました。詳細: {e}")
+        traceback.print_exc()
     return news_items
 
-def get_themes(args, batch_size=3):
+def get_themes(args, settings):
     if args.theme:
         print(f"{len(args.theme)}件のテーマが指定されました。")
         return args.theme
     
-    print("テーマが指定されていないため、Google Newsから自動取得します。")
-    news = fetch_news_rss()
-    print(f"DEBUG: news = {news}") # デバッグ用
-    if not news:
+    print("テーマが指定されていないため、設定ファイルに基づいてニュースから自動取得します。")
+    
+    all_news_titles = []
+    rss_settings = settings.get('rss', {})
+    feeds = rss_settings.get('feeds', [])
+    max_articles_per_feed = rss_settings.get('max_articles_per_feed', 5)
+
+    if not feeds:
+        print("エラー: settings.yamlにRSSフィードが設定されていません。")
+        return []
+
+    for feed_config in feeds:
+        feed_name = feed_config.get('name', 'Unknown Feed')
+        feed_url = feed_config.get('url')
+        feed_keywords = feed_config.get('keywords')
+        feed_categories = feed_config.get('categories')
+
+        if not feed_url:
+            print(f"警告: フィード '{feed_name}' のURLが設定されていません。スキップします。")
+            continue
+        
+        print(f"  - フィード '{feed_name}' からニュースを取得中...")
+        news_from_feed = fetch_news_from_feed(
+            feed_url, 
+            keywords=feed_keywords, 
+            categories=feed_categories, 
+            max_articles=max_articles_per_feed
+        )
+        all_news_titles.extend(news_from_feed)
+    
+    if not all_news_titles:
         print("ニュースが取得できませんでした。")
         return []
 
-    unique_news = filter_duplicate_themes(news)
+    unique_news = filter_duplicate_themes(all_news_titles)
     print(f"DEBUG: unique_news = {unique_news}") # デバッグ用
     
     selected_themes = []
@@ -80,17 +125,11 @@ def get_themes(args, batch_size=3):
         print(f"  - 1本目 (最近のトップニュース): {unique_news[0]}")
     
     # 2本目: トレンド (Trends) - 弱い代理
-    # Google News RSSから直接「トレンド」を特定するのは困難です。
-    # ここでは、2番目に新しいニュースを「トレンド」の代理とします。
-    # より正確なトレンドニュースのためには、専用のAPI（例: Google Trends API）が必要です。
     if len(unique_news) > 1:
         selected_themes.append(unique_news[1])
         print(f"  - 2本目 (トレンド - 弱い代理): {unique_news[1]}")
 
     # 3本目: あまり知られていないが面白いニュース (Less-known but interesting news) - 弱い代理
-    # 「面白い」の定義は主観的であり、RSSフィードから自動で選定するのは非常に困難です。
-    # ここでは、上位2つ以外のニュースからランダムに1つを選びます。
-    # より適切なニュースのためには、手動でのキュレーションや、より高度なニュース分析が必要です。
     if len(unique_news) > 2:
         remaining_news = unique_news[2:]
         if remaining_news:

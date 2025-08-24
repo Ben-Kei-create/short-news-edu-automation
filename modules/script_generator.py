@@ -1,9 +1,7 @@
 # modules/script_generator.py
 import os
 import google.generativeai as genai
-# google.generativeai.types を使用するようにインポートを修正
 from google.generativeai import types
-
 import re
 
 # generate_script 関数の引数に settings を追加
@@ -21,15 +19,34 @@ def generate_script(theme, settings):
         print("エラー: settings.yamlに 'api_keys.gemini' の設定がありません。")
         return None
 
-    # Gemini APIキーを設定
     genai.configure(api_key=api_key)
 
-    # プロンプトの作成
+    # settingsからスクリプト生成パラメータを取得
+    script_settings = settings.get('script_generation', {})
+    length = script_settings.get('length', 'short')
+    tone = script_settings.get('tone', 'educational_humorous')
+    target_audience = script_settings.get('target_audience', 'general_public')
+    max_script_length_chars = script_settings.get('max_script_length_chars', 1000)
+
+    # 長さに応じた文字数目安の調整
+    if length == "short":
+        duration_text = "厳密に60秒になるように、文字数を調整してください。（日本語の場合、60秒のナレーションは約300文字から350文字程度が目安です。）"
+        char_guideline = "合計：300-350文字"
+    elif length == "medium":
+        duration_text = "厳密に90秒になるように、文字数を調整してください。（日本語の場合、90秒のナレーションは約450文字から525文字程度が目安です。）"
+        char_guideline = "合計：450-525文字"
+    elif length == "long":
+        duration_text = "厳密に120秒になるように、文字数を調整してください。（日本語の場合、120秒のナレーションは約600文字から700文字程度が目安です。）"
+        char_guideline = "合計：600-700文字"
+    else: # デフォルトはshort
+        duration_text = "厳密に60秒になるように、文字数を調整してください。（日本語の場合、60秒のナレーションは約300文字から350文字程度が目安です。）"
+        char_guideline = "合計：300-350文字"
+
     prompt = f"""
 あなたはプロの放送作家です。
 以下のテーマについて、視聴者が最後まで釘付けになる「しくじり先生」風のショート動画の台本を生成してください。
-動画の長さは厳密に60秒になるように、文字数を調整してください。
-（日本語の場合、60秒のナレーションは約300文字から350文字程度が目安です。）
+動画の長さは{duration_text}
+トーンは「{tone}」で、ターゲット視聴者は「{target_audience}」です。
 
 # テーマ
 {theme}
@@ -78,7 +95,7 @@ def generate_script(theme, settings):
 - 本編：180-220文字
 - クライマックス：50-60文字
 - 締め：30-40文字
-- 合計：300-350文字
+- {char_guideline}
 
 # 出力形式
 以下の形式で台本を作成してください：
@@ -104,12 +121,14 @@ def generate_script(theme, settings):
         match = re.search(r"【台本】(.*?)【文字数】", response.text, re.DOTALL)
         if match:
             script_text = match.group(1).strip()
-            if script_text:
-                return script_text
+            # max_script_length_chars を超える場合は切り詰める
+            if len(script_text) > max_script_length_chars:
+                script_text = script_text[:max_script_length_chars] + "..."
+                print(f"  - 警告: 生成された台本が最大文字数({max_script_length_chars})を超えたため、切り詰めました。")
+            return script_text
         
         print(f"エラー: 生成されたテキストから台本の抽出に失敗しました。")
-        print(f"---
-{response.text[:500]}...
+        print(f"---{response.text[:500]}...
 ---")
         return None
 
@@ -119,4 +138,3 @@ def generate_script(theme, settings):
     except Exception as e:
         print(f"エラー: Gemini APIの呼び出し中に予期せぬエラーが発生しました: {e}")
         return None
-

@@ -231,15 +231,30 @@ def generate_images(theme, style, num=12, use_sd_api=False, use_google_search=Fa
         return []
 
     image_paths = []
-    if use_dalle:
-        image_paths = _generate_images_dalle(theme, style, num, settings)
-    elif use_google_search:
-        image_paths = _search_and_download_images(theme, num, settings)
-    elif use_sd_api:
-        image_paths = _generate_images_sd(theme, style, num, settings, sd_model, lora_model, lora_weight)
-    else:
-        # No image generation method selected, use placeholders directly
-        print("  - 画像生成方法が指定されていないため、プレースホルダー画像を使用します。")
+    # settingsからAPIの優先順位を取得
+    api_priority = settings.get('image_generation', {}).get('api_priority', ['stable_diffusion', 'dalle', 'google_search'])
+
+    # 優先順位に従ってAPIを試行
+    for api_name in api_priority:
+        if api_name == 'stable_diffusion' and use_sd_api:
+            print(f"  - 優先順位に従い、Stable Diffusion APIを試行します。")
+            image_paths = _generate_images_sd(theme, style, num, settings, sd_model, lora_model, lora_weight)
+            if image_paths:
+                break # 成功したら次のAPIは試さない
+        elif api_name == 'dalle' and use_dalle:
+            print(f"  - 優先順位に従い、DALL-E APIを試行します。")
+            image_paths = _generate_images_dalle(theme, style, num, settings)
+            if image_paths:
+                break
+        elif api_name == 'google_search' and use_google_search:
+            print(f"  - 優先順位に従い、Google Custom Search APIを試行します。")
+            image_paths = _search_and_download_images(theme, num, settings)
+            if image_paths:
+                break
+    
+    # どのAPIも有効化されていない、または全て失敗した場合のフォールバック
+    if not image_paths:
+        print("  - 有効な画像生成方法が選択されていないか、全てのAPIが失敗したため、プレースホルダー画像を使用します。")
         image_paths = _get_placeholder_images(num, settings)
 
     # Fallback logic

@@ -31,7 +31,7 @@ def process_single_video(theme, args, settings):
     try:
         # --- 台本生成 ---
         print("1. 台本を生成中...")
-        script_text = generate_script(theme, settings)
+                script_text = generate_script(theme, settings)
         
         if not script_text:
             print(f"エラー: 台本生成に失敗したため、テーマ「{theme}」の処理を中断します。")
@@ -150,7 +150,7 @@ def process_single_video(theme, args, settings):
         # --- サムネイル生成 ---
         print("7. サムネイルを生成中...")
         # generate_thumbnail 関数に settings を渡す
-        thumbnail_file = generate_thumbnail(theme, images, args, settings)
+        thumbnail_file = generate_thumbnail(theme, images, args, settings, video_file)
         print(f"-> サムネイルファイル: {thumbnail_file}")
     except Exception as e:
         print(f"エラー: サムネイル生成中に問題が発生しました: {e}")
@@ -181,13 +181,14 @@ def main():
         # --- 初期設定 ---
         setup_directories()
         args = parse_args()
-        settings = load_settings() # settings を読み込む
-        if not settings: # settings の読み込みに失敗した場合
-            print("設定ファイルの読み込みに失敗しました。処理を終了します。")
+        settings = load_settings()
+        if not settings:
+            logging.error("設定ファイルの読み込みに失敗しました。処理を終了します。")
             return
+        setup_logging(settings) # ロギング設定を初期化
 
         # --- テーマ取得 ---
-        themes = get_themes(args)
+        themes = get_themes(args, settings)
         if not themes:
             print("処理するテーマが見つからないため、終了します。")
             return

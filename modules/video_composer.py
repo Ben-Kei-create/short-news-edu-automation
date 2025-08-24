@@ -80,18 +80,36 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file, f
         print("  - 字幕を準備中...")
         if subtitle_file and os.path.exists(subtitle_file):
             try:
-                font_path = ''
-                if font_filename and os.path.exists(os.path.join("input/fonts", font_filename)):
-                    font_path = os.path.join("input/fonts", font_filename)
-                elif os.path.exists('/System/Library/Fonts/ヒラギノ角ゴ ProN W3.otf'):
-                    font_path = '/System/Library/Fonts/ヒラギノ角ゴ ProN W3.otf'
-                else:
-                    font_path = 'Arial'
-                    print(f"  - 警告: 日本語フォントが見つかりません。'{font_path}' で代用します。")
+                # 字幕設定をsettingsから取得
+                subtitle_settings = settings.get('subtitles', {})
+                font_path = subtitle_settings.get('font_path', 'Arial') # デフォルトはArial
+                font_size = subtitle_settings.get('font_size', 48)
+                font_color = subtitle_settings.get('font_color', 'white')
+                stroke_color = subtitle_settings.get('stroke_color', 'black')
+                stroke_width = subtitle_settings.get('stroke_width', 2)
+                position_setting = subtitle_settings.get('position', 'bottom')
+                margin = subtitle_settings.get('margin', 50)
 
-                generator = lambda txt: TextClip(txt, font=font_path, fontsize=settings['video_composer']['font_size'], color=settings['video_composer']['font_color'], stroke_color=settings['video_composer']['font_stroke_color'], stroke_width=settings['video_composer']['font_stroke_width'], method='caption', size=(settings['video_composer']['subtitle_width'], None))
+                # フォントファイルの存在チェック
+                if not os.path.exists(font_path):
+                    print(f"  - 警告: 指定されたフォントファイルが見つかりません: {font_path}。Arialで代用します。")
+                    font_path = 'Arial'
+
+                # TextClipのジェネレータ関数
+                generator = lambda txt: TextClip(txt, font=font_path, fontsize=font_size, color=font_color,
+                                                stroke_color=stroke_color, stroke_width=stroke_width,
+                                                method='caption', size=(1080 * 0.9, None)) # 幅は動画の90%とする
                 subtitles = SubtitlesClip(subtitle_file, generator)
-                subtitles_clip = subtitles.set_position(('center', settings['video_composer']['subtitle_position_y_ratio']))
+
+                # 字幕の位置設定
+                if position_setting == 'bottom':
+                    subtitles_clip = subtitles.set_position(('center', 1920 - subtitles.h - margin))
+                elif position_setting == 'center':
+                    subtitles_clip = subtitles.set_position('center')
+                elif position_setting == 'top':
+                    subtitles_clip = subtitles.set_position(('center', margin))
+                else: # カスタム座標 (x, y)
+                    subtitles_clip = subtitles.set_position(position_setting)
             except Exception as e:
                 print(f"  - 警告: 字幕クリップの作成中に予期せぬエラーが発生しました: {e}")
 
