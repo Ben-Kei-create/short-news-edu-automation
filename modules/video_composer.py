@@ -81,7 +81,7 @@ def compose_video(theme, images, audio_segments_info, bgm_path, subtitle_file):
         bgm_clip = None
         if bgm_path and os.path.exists(bgm_path):
             try:
-                bgm_clip_full = AudioFileClip(bgm_path).volumex(0.2)
+                bgm_clip_full = AudioFileClip(bgm_path).volumex(0.08)
                 if bgm_clip_full.duration < video_duration:
                     bgm_clip = afx.audio_loop(bgm_clip_full, duration=video_duration)
                 else:

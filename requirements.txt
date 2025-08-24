@@ -2,6 +2,7 @@ requests
 google-generativeai
 google-cloud-texttospeech
 python-dotenv
-moviepy
+moviepy==1.0.3
 numpy
 feedparser
+Pillow==9.5.0
