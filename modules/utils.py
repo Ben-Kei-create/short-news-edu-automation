@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from dotenv import load_dotenv # 追加
 
 def ensure_folder(folder_path):
     if not os.path.exists(folder_path):
@@ -11,9 +12,21 @@ def load_settings(config_path="config/settings.yaml"):
     """
     設定ファイルを読み込む。
     """
+    # .envファイルから環境変数をロード
+    load_dotenv()
+
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             settings = yaml.safe_load(f)
+
+        # APIキーを環境変数から上書き
+        if 'api_keys' in settings:
+            for key, value in settings['api_keys'].items():
+                env_var_name = f"{key.upper()}_API_KEY"
+                if key == "google_custom_search_cx":
+                    env_var_name = "GOOGLE_CUSTOM_SEARCH_CX"
+                settings['api_keys'][key] = os.getenv(env_var_name, value)
+
         return settings
     except FileNotFoundError:
         logging.error(f"設定ファイル '{config_path}' が見つかりません。")
