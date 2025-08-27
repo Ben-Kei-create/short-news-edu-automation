@@ -21,29 +21,52 @@
     pip install -r requirements.txt
     ```
 
-### 1.2. `torch` 関連のエラー (特にPython 3.10環境)
+### 1.2. `stable-diffusion-webui` 利用時の `torch` 関連エラー
 
-**問題**: `torch` や `torchvision`、`torchaudio` 関連のエラーが発生する。特にPython 3.10環境で発生しやすい場合があります。
+**問題**: `stable-diffusion-webui` をセットアップするために `pip install -r stable-diffusion-webui/requirements.txt` を実行すると、`torch` や `torchvision` に関連するバージョン競合やインストールエラーが発生する。
 
-**原因**: `torch` の特定のバージョンが、使用しているPythonバージョンやCUDA（GPU）環境と互換性がない可能性があります。`requirements.txt` には `torch` が直接指定されていないため、他のライブラリの依存関係としてインストールされる際に問題が生じることがあります。
+**原因**: `stable-diffusion-webui` が要求する `torch` のバージョンが、お使いのPythonのバージョンや、特にNVIDIA GPU環境でのCUDAのバージョンと互換性がない場合にこの問題が発生します。
 
-**解決策**:
-1.  **既存の `torch` のアンインストール**:
+**解決策**: `requirements.txt` をインストールする**前**に、ご自身の環境に合った`torch`を手動でインストールします。これにより、依存関係の解決が正しく行われるようになります。
+
+**手順**:
+
+1.  **`stable-diffusion-webui` ディレクトリに移動します。**
     ```bash
-    pip uninstall torch torchvision torchaudio -y
+    cd stable-diffusion-webui
     ```
-2.  **PyTorch公式サイトからのインストール**:
-    *   PyTorchの公式ウェブサイト (https://pytorch.org/get-started/locally/) にアクセスします。
-    *   ご自身の環境（OS, Package, Language, CUDA version）に合ったインストールコマンドを選択し、実行してください。
-    *   例 (Linux/CUDA 11.7の場合):
+
+2.  **（推奨）仮想環境を作成・有効化します。**
+    *   `stable-diffusion-webui` は多くのライブラリをインストールするため、専用の仮想環境で管理することを強く推奨します。
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # Linux/macOS
+    .\venv\Scripts\activate   # Windows PowerShell
+    ```
+
+3.  **環境に合った `torch` をインストールします。**
+    *   お使いのPCにNVIDIA製GPUが搭載されているか、どのCUDAバージョンに対応しているかを確認してください。
+    *   **【NVIDIA GPU (CUDA 12.1) の場合】**
         ```bash
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
         ```
-    *   例 (macOSの場合):
+    *   **【NVIDIA GPU (CUDA 11.8) の場合】**
+        ```bash
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        ```
+    *   **【GPUがない (CPUのみ) / macOS の場合】**
         ```bash
         pip install torch torchvision torchaudio
         ```
-    *   **注意**: `requirements.txt` を再インストールする前に、この手順を実行してください。
+    *   他のCUDAバージョンについては、[PyTorch公式サイト](https://pytorch.org/get-started/locally/)で適切なコマンドを確認してください。
+
+4.  **`requirements.txt` の残りのライブラリをインストールします。**
+    *   `torch`が既にインストールされているため、残りの依存関係がスムーズに解決されます。
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+この手順により、環境構築時の`torch`関連のエラーを回避できます。
 
 ## 2. APIキーと認証に関する問題
 

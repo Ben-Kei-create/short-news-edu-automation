@@ -1,5 +1,5 @@
 from moviepy.video.VideoClip import ImageClip
-from moviepy import concatenate_videoclips
+from moviepy.editor import concatenate_videoclips
 from moviepy.video.VideoClip import ColorClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
 

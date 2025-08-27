@@ -8,31 +8,40 @@ from .theme_selector import filter_duplicate_themes, select_themes_for_batch
 from .utils import load_settings # settingsを読み込むために追加
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="ショート動画自動生成パイプライン")
-    # 全般設定
-    parser.add_argument("--theme", type=str, nargs='+', help="動画テーマを1つ以上指定")
-    parser.add_argument("--bgm_path", type=str, help="BGMファイルパス")
-    parser.add_argument("--script_file", type=str, help="台本ファイルパス")
-    parser.add_argument("--manual_images", type=str, help="手動画像フォルダパス")
-
-    # 画像生成AI設定
-    parser.add_argument("--use_sd_api", action='store_false', default=True, help="Stable Diffusion APIを使用して画像を生成する (デフォルト: True)")
-    parser.add_argument("--use_google_search", action='store_false', default=True, help="Google Custom Searchを使用してWebから画像を検索・利用する (デフォルト: True)")
-    parser.add_argument("--use_dalle", action='store_false', default=True, help="DALL-Eを使用して画像を生成する (デフォルト: True)")
-    parser.add_argument("--style", type=str, default="cinematic, dramatic", help="画像の画風に関連するプロンプト")
-    parser.add_argument("--sd_model", type=str, help="使用するStable Diffusionのベースモデル名")
-    parser.add_argument("--lora_model", type=str, help="使用するLoRAモデル名 (拡張子なし)")
-    parser.add_argument("--lora_weight", type=float, default=0.8, help="LoRAの適用強度 (デフォルト: 0.8)")
-
-    # 字幕・フォント設定
-    parser.add_argument("--font", type=str, help="字幕に使用するフォントファイル名 (input/fonts/ 内)")
-
-    # 動画設定
-    parser.add_argument("--image_duration", type=float, default=5.0, help="各画像の表示時間 (秒) (デフォルト: 5.0)")
-
-    # SNS投稿設定
-    parser.add_argument("--post-to-youtube", action='store_false', default=True, help="生成した動画をYouTubeにアップロードする (デフォルト: True)")
-    parser.add_argument("--use-voicevox", action='store_true', default=False, help="VOICEVOX APIを使用して音声を生成する (デフォルト: False)")
+    parser = argparse.ArgumentParser(
+        description="設定ファイルに基づきショート動画を自動生成します。引数で一部の動作を上書きできます。"
+    )
+    
+    # --- 動作を上書きするオプション引数 ---
+    parser.add_argument(
+        "--theme", 
+        type=str, 
+        nargs='+', 
+        help="RSS取得をスキップし、指定したテーマで動画を生成します。"
+    )
+    parser.add_argument(
+        "--script-path", 
+        type=str, 
+        help="台本生成をスキップし、指定したテキストファイルを使用します。"
+    )
+    parser.add_argument(
+        "--bgm-path", 
+        type=str, 
+        help="settings.yamlのBGM設定を上書きし、指定したBGMファイルを使用します。"
+    )
+    
+    # YouTube投稿設定の上書き
+    post_group = parser.add_mutually_exclusive_group()
+    post_group.add_argument(
+        "--post", 
+        action="store_true", 
+        help="settings.yamlの設定を無視して、強制的にYouTubeに投稿します。"
+    )
+    post_group.add_argument(
+        "--no-post", 
+        action="store_true", 
+        help="settings.yamlの設定を無視して、YouTubeへの投稿を強制的にスキップします。"
+    )
 
     return parser.parse_args()
 
@@ -76,10 +85,10 @@ def fetch_news_from_feed(rss_url, keywords=None, categories=None, max_articles=N
         traceback.print_exc()
     return news_items
 
-def get_themes(args, settings):
-    if args.theme:
-        print(f"{len(args.theme)}件のテーマが指定されました。")
-        return args.theme
+def get_themes(settings):
+    if 'runtime_themes' in settings:
+        print(f"{len(settings['runtime_themes'])}件のテーマが指定されました。")
+        return settings['runtime_themes']
     
     print("テーマが指定されていないため、設定ファイルに基づいてニュースから自動取得します。")
     
@@ -92,21 +101,17 @@ def get_themes(args, settings):
         print("エラー: settings.yamlにRSSフィードが設定されていません。")
         return []
 
-    for feed_config in feeds:
-        feed_name = feed_config.get('name', 'Unknown Feed')
-        feed_url = feed_config.get('url')
-        feed_keywords = feed_config.get('keywords')
-        feed_categories = feed_config.get('categories')
+    for feed_url in feeds:
+        feed_name = feed_url # URLをそのまま名前として使用
 
         if not feed_url:
             print(f"警告: フィード '{feed_name}' のURLが設定されていません。スキップします。")
             continue
         
         print(f"  - フィード '{feed_name}' からニュースを取得中...")
+        # 現在のsettings.yamlのRSSフィードはURL文字列のみなので、keywords/categoriesは渡さない
         news_from_feed = fetch_news_from_feed(
             feed_url, 
-            keywords=feed_keywords, 
-            categories=feed_categories, 
             max_articles=max_articles_per_feed
         )
         all_news_titles.extend(news_from_feed)

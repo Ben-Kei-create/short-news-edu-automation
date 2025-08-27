@@ -1,39 +1,72 @@
 import csv
+import os
 from datetime import datetime
 from .youtube_uploader import upload_video
+import logging
 
-def log_video(video_file, theme, images, style, bgm_file, settings):
+logger = logging.getLogger(__name__)
+
+def log_video(video_file, theme, settings):
     """生成された動画の情報をログファイルに記録する"""
     try:
-        log_file = settings['general']['log_file_path']
-        with open(log_file, mode='a', newline='', encoding='utf-8') as f:
+        log_dir = settings.get('logging', {}).get('directory', 'output/logs')
+        os.makedirs(log_dir, exist_ok=True)
+        # ログファイル名を video_log.csv などに固定する
+        log_file_path = os.path.join(log_dir, "video_production_log.csv")
+        
+        file_exists = os.path.isfile(log_file_path)
+        
+        with open(log_file_path, mode='a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow([video_file, theme, ";".join(images), style, bgm_file, datetime.now()])
-        print(f"ログを記録: {log_file}")
+            # ファイルが新規作成された場合、ヘッダーを書き込む
+            if not file_exists:
+                writer.writerow(["timestamp", "theme", "video_file_path", "audio_engine", "bgm_path"])
+            
+            # ログデータを書き込む
+            writer.writerow([
+                datetime.now().isoformat(),
+                theme,
+                video_file,
+                settings.get('audio_engine', 'google'),
+                settings.get('bgm', {}).get('path', 'N/A')
+            ])
+        logger.info(f"動画生成ログを記録しました: {log_file_path}")
     except Exception as e:
-        print(f"エラー: ログの記録中にエラーが発生しました: {e}")
+        logger.error(f"ログの記録中にエラーが発生しました: {e}", exc_info=True)
 
-def post_to_sns(video_file, title="", description="", hashtags=None, args=None, settings=None):
-    """SNSプラットフォームに動画を投稿する"""
-    if not args or not settings:
-        print("SNS投稿に必要な引数(args, settings)が不足しています。")
+def post_to_sns(video_file, thumbnail_file, theme, script_text, settings):
+    """SNSプラットフォーム（現在はYouTube）に動画を投稿する"""
+    yt_settings = settings.get('youtube', {})
+    
+    if not yt_settings.get('post_to_youtube', False):
+        logger.info("設定でYouTubeへの投稿が無効になっているため、スキップします。")
         return
 
-    if args.post_to_youtube:
-        print("YouTubeへの投稿を開始します...")
-        # ハッシュタグを説明文に追加
-        if hashtags:
-            description_with_hashtags = description + "\n\n" + " ".join(hashtags)
-        else:
-            description_with_hashtags = description
-        
+    logger.info("YouTubeへの投稿を開始します...")
+
+    # --- タイトル、説明、タグを生成 ---
+    title = yt_settings.get('title_template', "{theme}").format(theme=theme)
+    
+    description = yt_settings.get('description_template', "{script}").format(
+        theme=theme, 
+        script=script_text
+    )
+    
+    tags = yt_settings.get('tags', [])
+    # テーマもタグに追加する
+    if theme not in tags:
+        tags.append(theme)
+
+    try:
         upload_video(
-            settings=settings,
             video_path=video_file,
+            thumbnail_path=thumbnail_file,
             title=title,
-            description=description_with_hashtags,
-            tags=hashtags,
-            privacy_status="private"  # or "public", "unlisted"
+            description=description,
+            tags=tags,
+            category_id=yt_settings.get('category_id', '27'),
+            privacy_status=yt_settings.get('privacy_status', 'private'),
+            settings=settings
         )
-    else:
-        print("SNSへの投稿は指定されていません。")
+    except Exception as e:
+        logger.critical(f"YouTubeへのアップロード処理中にエラーが発生しました: {e}", exc_info=True)

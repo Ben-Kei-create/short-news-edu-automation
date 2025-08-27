@@ -10,20 +10,19 @@ import logging # 追加
 # ロガーを取得
 logger = logging.getLogger(__name__)
 
-def generate_voice(script_text, settings, use_voicevox_cli_arg=None):
+def generate_voice(script_text, settings):
     """
     Google Cloud TTSまたはVOICEVOXで台本を音声化し、tempフォルダに保存する。
     成功した場合は音声セグメント情報のリストを、失敗した場合はNoneを返す。
     """
-    # CLI引数が指定された場合は、settings.yamlの設定を上書きする
-    if use_voicevox_cli_arg is not None:
-        use_voicevox = use_voicevox_cli_arg
-    else:
-        use_voicevox = settings.get('voicevox', {}).get('enabled', False)
+    # settings.yamlの'audio_engine'設定に基づいて使用するエンジンを決定
+    engine = settings.get('audio_engine', 'google') # デフォルトはgoogle
 
-    if use_voicevox:
+    if engine == 'voicevox':
+        logger.info("音声合成エンジン: VOICEVOX を使用します。")
         return _generate_voice_voicevox(script_text, settings)
     else:
+        logger.info("音声合成エンジン: Google Cloud TTS を使用します。")
         return _generate_voice_google_tts(script_text, settings)
 
 def _generate_voice_google_tts(script_text, settings):

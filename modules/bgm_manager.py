@@ -1,29 +1,22 @@
 import os
-import logging # 追加
+import logging
 
-logger = logging.getLogger(__name__) # ロガーを取得
+logger = logging.getLogger(__name__)
 
-# select_bgm 関数の引数に settings を追加
-def select_bgm(bgm_path=None, settings=None):
+def select_bgm(settings):
     """
-    BGMファイルを選択する。指定がなければデフォルトのBGMを探す。
+    設定ファイルに基づきBGMファイルを選択する。
+    ファイルが存在しない場合は警告を出し、BGMなし（None）を返す。
     """
-    if bgm_path:
-        if os.path.exists(bgm_path):
-            logger.info(f"指定されたBGMファイルを使用します: {bgm_path}")
-            return bgm_path
-        else:
-            logger.warning(f"指定されたBGMファイル '{bgm_path}' が見つかりません。デフォルトBGMを探します。")
+    bgm_path = settings.get('bgm', {}).get('path')
 
-    # デフォルトBGMの候補 (優先順位順) を settings から取得
-    default_bgm_candidates = settings.get('bgm', {}).get('default_candidates', [])
+    if not bgm_path:
+        logger.info("設定ファイルでBGMが指定されていないため、BGMなしで動画を生成します。")
+        return None
 
-    for candidate in default_bgm_candidates:
-        if os.path.exists(candidate):
-            logger.info(f"デフォルトBGMとして '{candidate}' を使用します。")
-            return candidate
-    
-    # どのBGMも見つからなかった場合
-    error_message = "BGMファイルが見つかりません。'input/bgm/default_bgm.mp3' または 'sample.mp4' を配置するか、--bgm_path で指定してください。"
-    logger.error(error_message)
-    raise FileNotFoundError(error_message)
+    if os.path.exists(bgm_path):
+        logger.info(f"BGMファイルを使用します: {bgm_path}")
+        return bgm_path
+    else:
+        logger.warning(f"指定されたBGMファイル '{bgm_path}' が見つかりません。BGMなしで動画を生成します。")
+        return None
